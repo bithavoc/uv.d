@@ -2,7 +2,8 @@
 Authors: thepumpkin1979, johan@firebase.co
  */
 module duv.core;
-import duv.c.calls;
+import duv.c;
+import core.thread;
 
 debug {
   import std.stdio;
@@ -35,27 +36,16 @@ private {
   }
 
   extern (C) {
-    /**
-      unv_connection_cb callback for the uv_tcp_stream_t(DuvTcpStream).
-     */
-    void duv_on_tcp_stream_connect(void*handle, int status) {
-      writeln("Invocking allocate");
-      uv_buf_t st = duv_alloc_callback(cast(void*)20, 3000);
-      writefln("MY OWN len for the dummy buf %d",st.len);
 
+    void duv_on_tcp_stream_connect_fiber(void* handle, int status) {
+      writeln("TCP Connect callback called");
       writeln("New Connection for Handle", handle, " with status ", status);
       void* selfPtr = duv_get_handle_data(handle);
-      writeln("SelfPtr is", selfPtr);
       DuvTcpStream self = cast(DuvTcpStream)selfPtr;
 
-      DuvTcpStream clientStream = new DuvTcpStream(self.loop);
-      duv_status acceptStatus = uv_accept(handle, clientStream.ptr);
-      printUVError(self.loop);
-      clientStream.listener = self;
+      self._onClientConnected();
 
-      if(self.onConnection != null) {
-        self.onConnection(clientStream);
-      }
+      //self._listenFiber.call();
     }
 
     void duv_stream_read_callback(void* stream, ssize_t nread, uv_buf_t buf) {
@@ -105,6 +95,29 @@ private {
 public {
 
   /**
+    Delegate provided when running code in Duv Context.
+    */
+  alias void delegate(DuvLoop loop) DuvContextDelegate;
+
+  /**
+    Stats a Duv Run and Executes the Delegate in a new Fiber.
+    */
+  void runMainDuv(DuvContextDelegate contextDelegate) {
+    runSubDuv(contextDelegate);
+    defaultLoop.runAndWait(); // Then Start the loop
+  }
+
+  /**
+    Runs a delegate in the context of the Current Duv Loop using a new Fiber.
+    */
+  void runSubDuv(DuvContextDelegate contextDelegate) {
+    auto fiber = new Fiber(() {
+      contextDelegate(defaultLoop);
+    });
+    fiber.call(); // Call until yields(if ever yields).
+  }
+
+  /**
     Describes a Buffer that Will be used Temporarily on a Callback
     */
   class DuvTempBuffer {
@@ -120,6 +133,8 @@ public {
       Converts this Temporary Buffer to an Array of Bytes
       */
     public ubyte[] toBytes() {
+      writeln("Buf Base ", this._buf.base);
+      if(!this._buf.base) return null;
       return this._buf.base[0..this._count];
     }
 
@@ -199,6 +214,11 @@ See_Also: Default
       duv_status status = uv_run(this.ptr);
       ensureSuccessCall(status, this);
     }
+
+    public void runOnce() {
+      duv_status status = uv_run_once(this.ptr);
+      ensureSuccessCall(status, this);
+    }
   }
   /**
     Duv Exception. Normally raised when an error code is found in libuv.
@@ -224,8 +244,8 @@ See_Also: Default
   }
 
   alias void delegate(DuvStream stream) DuvStreamClosedDelegate;
-  alias void delegate(DuvStream stream, Throwable error, DuvTempBuffer buffer) DuvStreamReadDelegate;
-  alias void delegate(DuvStream stream, Throwable error) DuvStreamWriteDelegate;
+  private alias void delegate(DuvStream stream, Throwable error, DuvTempBuffer buffer) DuvStreamReadDelegate;
+  private alias void delegate(DuvStream stream, Throwable error) DuvStreamWriteDelegate;
   alias void delegate(DuvTcpStream stream, Throwable error) DuvTcpStreamConnectDelegate;
 
   private class DuvStreamWriteRequest {
@@ -336,14 +356,11 @@ See_Also: Default
       _listener = listener;
     }
 
-    /**
-      Start reading data in this stream
-      */
-    public void startReading(DuvStreamReadDelegate onRead) {
+    /*public void startReading(DuvStreamReadDelegate onRead) {
       this._onRead = onRead;
       duv_status status = uv_read_start(this.ptr, &duv_alloc_callback, &duv_stream_read_callback);
       ensureSuccessCall(status, this.loop);
-    }
+    }*/
 
     private void _onReadCallback(ssize_t nread, uv_buf_t buf) {
       debug {
@@ -365,6 +382,40 @@ See_Also: Default
       }
       buf.free();
     }
+   
+    Fiber _readFiber;
+    /**
+      Listen for new Connections. Needs to be bound using bind4 or bind6.
+See_Also: bind4, bind6
+     */
+    public ubyte[] read() {
+      _readFiber = Fiber.getThis();
+      Throwable readError = null;
+      ubyte[] result = null;
+      debug {
+        writeln("ReadSync");
+      }
+      this._onRead = delegate(self, err, data) {
+        writeln("_onRead ERROR WAS ", err);
+        if(data) {
+          result = data;
+        }
+        readError = err;
+        _readFiber.call();
+      };
+      duv_status status = uv_read_start(this.ptr, &duv_alloc_callback, &duv_stream_read_callback);
+      ensureSuccessCall(status, this.loop);
+      Fiber.yield();
+      _readFiber = null;
+      uv_read_stop(this.ptr);
+      if(readError !is null) {
+        writeln("Read Error was ", readError);
+        writeln("Error was found while reading");
+        throw readError;
+      }
+      writeln("readSync will return");
+      return result;
+    }
 
     public void close() {
       uv_close(this.ptr, &duv_stream_close_callback);
@@ -380,11 +431,12 @@ See_Also: Default
     }
 
     public void write(ubyte[] data) {
-      this.write(data, null);
-    }
-
-    public void write(ubyte[] data, DuvStreamWriteDelegate onFinished) {
-      auto write = new DuvStreamWriteRequest(this, onFinished, data);
+      Throwable writeErr;
+      Fiber _writeFiber = Fiber.getThis();
+      auto write = new DuvStreamWriteRequest(this, (st, errex) {
+          writeErr = errex;
+          _writeFiber.call();
+      }, data);
       debug {
         writeln("Write Request Created ", write.ptr);
       }
@@ -394,6 +446,10 @@ See_Also: Default
       buf.len = data.length;
       duv_status status = uv_write(write.ptr, this.ptr, &buf, 1, &duv_stream_write_callback);
       ensureSuccessCall(status, this.loop);
+      Fiber.yield();
+      if(writeErr) {
+        throw writeErr;
+      }
     }
 
     package void _onWriteCallback(DuvStreamWriteRequest request, duv_status status) {
@@ -404,9 +460,11 @@ See_Also: Default
       }
       clear(request);
     }
-
   }
 
+  debug {
+    shared  int globalId = 0;
+  }
   /**
     TCP Stream
    */
@@ -414,6 +472,9 @@ See_Also: Default
 
     private void delegate(DuvTcpStream) onConnection;
     private DuvTcpStreamConnectRequest _connectRequest;
+    debug {
+      public int id;
+    }
 
     /**
       Creates a TCP Stream on the default loop.
@@ -427,6 +488,9 @@ See_Also: Default
      */
     public this(DuvLoop loop) {
       super(uv_handle_type.TCP, loop);
+      debug {
+        id = globalId++;
+      }
     }
 
     protected override void init() { 
@@ -453,21 +517,54 @@ See_Also: Default
       }
     }
 
+    private Fiber _acceptFiber;
+    private DuvTcpStream _acceptedClient;
+
+    private bool _isListening;
+
+    public @property bool isListening() {
+      return this._isListening;
+    }
+
     /**
       Listen for new Connections. Needs to be bound using bind4 or bind6.
 See_Also: bind4, bind6
      */
-    public void listen(int backlog, void delegate(DuvTcpStream) onConnection) {
-      this.onConnection = onConnection;
-      debug {
-        writeln("listen");
-      }
-      writeln("Will listen with ptr ", cast(void*)this);
-      duv_status status = uv_listen(this.ptr, backlog, &duv_on_tcp_stream_connect);
+    public void listen(int backlog) {
+      // this._onAccepted = onAccepted;
+      //this._listenFiber = Fiber.getThis();
+      duv_status status = uv_listen(this.ptr, backlog, &duv_on_tcp_stream_connect_fiber);
       ensureSuccessCall(status, this.loop);
-      debug {
-        writeln(" Listening");
+      this._isListening = true;
+      //writeln("Will yield now");
+      //Fiber.yield();
+      //writeln("listen continueing...");
+      //return _acceptedClient;
+    }
+
+    package void _onClientConnected() {
+      if(_acceptFiber && _acceptFiber.state() == Fiber.State.HOLD) {
+        DuvTcpStream clientStream = new DuvTcpStream(this.loop);
+        duv_status acceptStatus = uv_accept(this.ptr, clientStream.ptr);
+        printUVError(this.loop);
+        clientStream.listener = this;
+
+        writeln("Will continue with original execution in 4.3.2.1..");
+        this._acceptedClient = clientStream;
+        /*auto acceptFiber = new Fiber(() {
+          self._onAccepted(clientStream);
+        });*/
+        _acceptFiber.call();
       }
+    }
+
+    public DuvTcpStream accept() {
+      if(!isListening) {
+        throw new Exception("Stream is not listening");
+      }
+      _acceptFiber = Fiber.getThis();
+      Fiber.yield();
+      return this._acceptedClient;
     }
 
     public void connect4(string ipv4, int port, DuvTcpStreamConnectDelegate onConnect) {

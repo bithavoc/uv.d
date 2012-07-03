@@ -1,4 +1,4 @@
-module duv.c.calls;
+module duv.c;
 import std.conv;
 import std.c.stdlib;
 import std.stdint;
@@ -93,6 +93,8 @@ duv_status duv_tcp_bind(uv_tcp_t_ptr server, sockaddr_in_ptr addr);
 duv_status uv_listen(uv_stream_t_ptr stream, int backlog, uv_connection_cb on_connection);
 
 duv_status uv_run(uv_loop_t_ptr);
+duv_status uv_run_once(uv_loop_t_ptr);
+void uv_ref(uv_loop_t_ptr);
 uv_err_t uv_last_error(uv_loop_t_ptr);
 immutable (char)* uv_strerror(uv_err_t err);
 size_t uv_handle_size(uv_handle_type type);
@@ -106,6 +108,7 @@ duv_status uv_accept(void* server, void*client);
 
 duv_status uv_read_start(void* handle, uv_alloc_cb alloc_cb,
     uv_read_cb read_cb);
+duv_status uv_read_stop(void* handle);
 void uv_close(void* handle, uv_close_cb close_cb);
 
 uv_buf_t duv_alloc_callback(void* handle, size_t suggested_size) {
