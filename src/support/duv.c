@@ -51,6 +51,10 @@ uv_write_t* duv_alloc_write() {
   return (uv_write_t*)malloc(sizeof(uv_write_t));
 }
 
+uv_timer_t* duv_alloc_timer() {
+  return (uv_timer_t*)malloc(sizeof(uv_timer_t));
+}
+
 uv_connect_t* duv_alloc_connect() {
   return (uv_connect_t*)malloc(sizeof(uv_connect_t));
 }

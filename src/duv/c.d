@@ -6,12 +6,14 @@ import std.stdint;
 alias void* uv_tcp_t_ptr;
 alias void* uv_stream_t_ptr;
 alias void* uv_loop_t_ptr;
+struct uv_loop_t;
 alias intptr_t ssize_t;
 alias int duv_status;
 struct uv_connect_t;
 alias uv_connect_t* uv_connect_t_ptr;
 struct sockaddr_in; // IPv4
 alias sockaddr_in* sockaddr_in_ptr;
+struct uv_timer_t;
 
 //alias void* uv_connection_cb;
 enum uv_handle_type {
@@ -82,6 +84,7 @@ alias void function(void *stream, ssize_t nread, uv_buf_t buf) uv_read_cb;
 alias void function(void *handle) uv_close_cb;
 alias void function(uv_write_t_ptr handle, duv_status status) uv_write_cb;
 alias void function(uv_connect_t_ptr handle, duv_status status) uv_connect_cb;
+alias void function(uv_timer_t* handle, duv_status status) uv_timer_cb;
 
 //struct uv_write_t;
 alias void* uv_write_t_ptr;
@@ -123,3 +126,9 @@ duv_status uv_write(uv_write_t_ptr req, uv_stream_t_ptr handle, uv_buf_t* bufs, 
 
 uv_connect_t_ptr duv_alloc_connect();
 duv_status duv_tcp_connect(uv_connect_t_ptr req, uv_tcp_t_ptr handle, sockaddr_in_ptr address, uv_connect_cb cb);
+
+uv_timer_t* duv_alloc_timer();
+
+duv_status uv_timer_init(uv_loop_t_ptr loop, uv_timer_t *timer);
+duv_status uv_timer_start(uv_timer_t *timer, uv_timer_cb cb, long timeout, long repeat);
+duv_status uv_timer_stop(uv_timer_t *timer);

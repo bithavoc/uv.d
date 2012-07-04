@@ -20,9 +20,30 @@ int main() {
     stream.bind4("0.0.0.0", 3000);
     writeln("Will listen for new connections using Fiber");
     stream.listen(128);
+    DuvTimer timer = new DuvTimer(loop);
+    DuvStream lastClient = null;
+    timer.setTimeout(2000);
+    timer.setRepeat(2000);
+    int lastCount = 0;
+    timer.setCallback((timer) {
+      writefln("It's time to check out something!, %s", lastClient);
+      if(lastClient) {
+        lastCount++;
+        if(lastCount == 2) {
+          lastClient.close();
+          lastClient = null;
+        }
+        if(lastCount == 5) {
+          writefln("Stopping Timer");
+          timer.stop();
+        }
+      }
+    });
+    timer.start();
     while(true) {
       writeln("== Will Accept Client ==");
       auto acceptedClient = stream.accept();
+      lastClient = acceptedClient;
       runSubDuv((loop) {
         auto client = acceptedClient;
         writefln("Client %s Accepted in a new Fiber", client.id);

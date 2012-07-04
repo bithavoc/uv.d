@@ -32,14 +32,21 @@ private {
   void printUVError(DuvLoop loop) {
     auto lastError = uv_last_error(loop.ptr);
     string errorMessage = duv_strerror(lastError);
-    writeln("UV error: ", errorMessage, " with code ", lastError.code);
+    debug {
+      writeln("UV error: ", errorMessage, " with code ", lastError.code);
+    }
   }
 
   extern (C) {
 
+    /**
+      * EXPERIMENTAL: FIBER EXPERIMENTAL CALLBACK
+     */
     void duv_on_tcp_stream_connect_fiber(void* handle, int status) {
-      writeln("TCP Connect callback called");
-      writeln("New Connection for Handle", handle, " with status ", status);
+      debug {
+        writeln("TCP Connect callback called");
+        writeln("New Connection for Handle", handle, " with status ", status);
+      }
       void* selfPtr = duv_get_handle_data(handle);
       DuvTcpStream self = cast(DuvTcpStream)selfPtr;
 
@@ -89,6 +96,14 @@ private {
       }
       request._stream._onConnectCallback(request, status);
     }
+    
+    void duv_timer_timeout_callback(uv_timer_t* timer, duv_status status) {
+      debug {
+        writeln("Timer Callback Reached");
+      }
+      auto selfTimer = cast(DuvTimer)duv_get_handle_data(timer);
+      selfTimer._onTimeoutCallback(status);
+    }
   }
 }
 
@@ -133,7 +148,6 @@ public {
       Converts this Temporary Buffer to an Array of Bytes
       */
     public ubyte[] toBytes() {
-      writeln("Buf Base ", this._buf.base);
       if(!this._buf.base) return null;
       return this._buf.base[0..this._count];
     }
@@ -150,6 +164,7 @@ public {
       return this.toBytes();
     }
   }
+
 
   /**
     Returns the default loop for the current thread. It uses uv_default_loop under the hood.
@@ -297,6 +312,65 @@ See_Also: Default
       }
     }
   }
+
+  alias void delegate (DuvTimer) DuvTimerCallback;
+  public class DuvTimer {
+    private DuvLoop _loop;
+    private uv_timer_t *ptr;
+    private DuvTimerCallback _callback;
+    long _timeout, _repeat;
+    public @property DuvLoop loop() {
+      return _loop;
+    }
+    public @property long timeout() {
+      return _timeout;
+    }
+    public void setTimeout(long timeout) {
+      _timeout = timeout;
+    }
+    public @property repeat() {
+      return _repeat;
+    }
+    public void setRepeat(long repeat) {
+      _repeat = repeat;
+    }
+    public @property callback() {
+      return _callback;
+    }
+    public void setCallback(DuvTimerCallback callback) {
+      _callback = callback;
+    }
+    public this(DuvLoop loop) {
+      this._loop = loop;
+      this.ptr = duv_alloc_timer();
+      duv_set_handle_data(this.ptr, cast(void*)this);
+      uv_timer_init(this._loop.ptr, this.ptr);
+    }
+    public void start() {
+      uv_timer_start(this.ptr, &duv_timer_timeout_callback, _timeout, _repeat);
+    }
+    public void stop() {
+      uv_timer_stop(this.ptr);
+    }
+    package void _onTimeoutCallback(duv_status status) {
+      if(_callback) {
+        runSubDuv((loop) {
+          _callback(this);
+        });
+      }
+    }
+    public ~this() {
+      this._callback = null;
+      if(this.ptr != null) {
+        this.stop();
+        debug {
+          writefln("Destroying Timer handle");
+        }
+        duv_free_handle(cast(void*)this.ptr);
+        this.ptr = null;
+      }
+    }
+  }
   /**
     libuv stream.
    */
@@ -396,7 +470,6 @@ See_Also: bind4, bind6
         writeln("ReadSync");
       }
       this._onRead = delegate(self, err, data) {
-        writeln("_onRead ERROR WAS ", err);
         if(data) {
           result = data;
         }
@@ -409,11 +482,12 @@ See_Also: bind4, bind6
       _readFiber = null;
       uv_read_stop(this.ptr);
       if(readError !is null) {
-        writeln("Read Error was ", readError);
-        writeln("Error was found while reading");
+        debug {
+          writeln("Read Error was ", readError);
+          writeln("Error was found while reading");
+        }
         throw readError;
       }
-      writeln("readSync will return");
       return result;
     }
 
@@ -448,7 +522,7 @@ See_Also: bind4, bind6
       ensureSuccessCall(status, this.loop);
       Fiber.yield();
       if(writeErr) {
-        throw writeErr;
+        Fiber.yieldAndThrow(writeErr);
       }
     }
 
@@ -548,12 +622,7 @@ See_Also: bind4, bind6
         duv_status acceptStatus = uv_accept(this.ptr, clientStream.ptr);
         printUVError(this.loop);
         clientStream.listener = this;
-
-        writeln("Will continue with original execution in 4.3.2.1..");
         this._acceptedClient = clientStream;
-        /*auto acceptFiber = new Fiber(() {
-          self._onAccepted(clientStream);
-        });*/
         _acceptFiber.call();
       }
     }
@@ -567,13 +636,26 @@ See_Also: bind4, bind6
       return this._acceptedClient;
     }
 
-    public void connect4(string ipv4, int port, DuvTcpStreamConnectDelegate onConnect) {
-      auto request = new DuvTcpStreamConnectRequest(this, onConnect);
+    alias void delegate(DuvTcpStream stream, Throwable error) DuvTcpStreamConnectDelegate;
+    private Fiber _connectFiber;
+    public void connect4(string ipv4, int port) {
+      Throwable connectError = null;
+      auto request = new DuvTcpStreamConnectRequest(this, (stream, error) {
+          connectError = error;
+          _connectFiber.call();
+      });
       this._connectRequest = request;
       sockaddr_in_ptr addr = duv_ip4_addr(std.string.toStringz(ipv4), port);
       duv_status status = duv_tcp_connect(request.ptr, this.ptr, addr, &duv_tcp_connect_callback);
       std.c.stdlib.free(addr);
       ensureSuccessCall(status, this.loop);
+      _connectFiber = Fiber.getThis();
+      Fiber.yield();
+      _connectFiber = null;
+      _connectRequest = null;
+      if(connectError) {
+        Fiber.yieldAndThrow(connectError);
+      }
     }
     
     package void _onConnectCallback(DuvTcpStreamConnectRequest request, duv_status status) {
