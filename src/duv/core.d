@@ -12,6 +12,14 @@ debug {
 private {
   static DuvLoop _defaultLoop;
 
+  struct DUVError {
+    uv_err_t err;
+    string errorMessage;
+    public @property bool ok() {
+      return this.err.code == 0;
+    }
+  }
+
   Throwable lastUVThrowable(DuvLoop loop) {
       auto lastError = uv_last_error(loop.ptr);
       if(lastError.code != 0) {
@@ -19,6 +27,17 @@ private {
         return new DuvException(errorMessage, lastError.code);
       }
       return null;
+  }
+  
+  DUVError lastDUVError(DuvLoop loop) {
+      auto lastError = uv_last_error(loop.ptr);
+      DUVError error;
+      error.err = lastError;
+      if(lastError.code != 0) {
+        string errorMessage = duv_strerror(lastError);
+        error.errorMessage = errorMessage;
+      }
+      return error;
   }
 
   /// Throws an exception if the call is not successfull.
@@ -122,14 +141,27 @@ public {
     defaultLoop.runAndWait(); // Then Start the loop
   }
 
+  class DuvFiber : Fiber{
+    this(void delegate() fn) {
+      super(fn);
+    }
+    ~this() {
+      debug {
+        import std.stdio;
+        writeln("Freeing Duv Fiber");
+      }
+    }
+  }
+
   /**
     Runs a delegate in the context of the Current Duv Loop using a new Fiber.
     */
-  void runSubDuv(DuvContextDelegate contextDelegate) {
-    auto fiber = new Fiber(() {
+  DuvFiber runSubDuv(DuvContextDelegate contextDelegate) {
+    auto fiber = new DuvFiber(() {
       contextDelegate(defaultLoop);
     });
     fiber.call(); // Call until yields(if ever yields).
+    return fiber;
   }
 
   /**
@@ -248,18 +280,18 @@ See_Also: Default
       return _code;
     }
 
-    public this(string msg) {
-      this(msg, 0);
+    public this(string msg, string file = __FILE__, size_t line = __LINE__, Throwable next = null) {
+      this(msg, 0, file, line, next);
     }
 
-    public this(string msg, int code) {
-      super(msg);
+    public this(string msg, int code, string file = __FILE__, size_t line = __LINE__, Throwable next = null) {
+      super(msg, file, line, next);
       this._code = code;
     }
   }
 
   alias void delegate(DuvStream stream) DuvStreamClosedDelegate;
-  private alias void delegate(DuvStream stream, Throwable error, DuvTempBuffer buffer) DuvStreamReadDelegate;
+  private alias void delegate(DuvStream stream, DUVError error, DuvTempBuffer buffer) DuvStreamReadDelegate;
   private alias void delegate(DuvStream stream, Throwable error) DuvStreamWriteDelegate;
   alias void delegate(DuvTcpStream stream, Throwable error) DuvTcpStreamConnectDelegate;
 
@@ -337,8 +369,9 @@ See_Also: Default
     public @property callback() {
       return _callback;
     }
-    public void setCallback(DuvTimerCallback callback) {
+    public @property void callback(DuvTimerCallback callback) {
       _callback = callback;
+      _fibers.length = 0;
     }
     public this(DuvLoop loop) {
       this._loop = loop;
@@ -352,11 +385,29 @@ See_Also: Default
     public void stop() {
       uv_timer_stop(this.ptr);
     }
+    DuvFiber[] _fibers;
+    alias void delegate(DuvLoop) DuvCallback;
     package void _onTimeoutCallback(duv_status status) {
+      import std.stdio;
       if(_callback) {
-        runSubDuv((loop) {
-          _callback(this);
-        });
+        DuvFiber freeFiber = null;
+        foreach(DuvFiber fiber ; _fibers) {
+          if(fiber.state() == Fiber.State.TERM) {
+            freeFiber = fiber;
+            break;
+          }
+        }
+        if(freeFiber) {
+          writeln("Recycling Fiber, Fiber Count ", _fibers.length);
+          freeFiber.reset();
+          freeFiber.call();
+        } else {
+          writeln("Creating Fiber, Fiber Count ", _fibers.length);
+          DuvFiber fiber = runSubDuv((loop) {
+            _callback(this);
+          });
+          _fibers ~= fiber;
+        }
       }
     }
     public ~this() {
@@ -387,6 +438,11 @@ See_Also: Default
     private DuvStreamReadDelegate _onRead;
 
     private DuvStreamWriteRequest[ssize_t] _writes;
+    private bool _isOpen;
+
+    public @property isOpen() {
+      return _isOpen;
+    }
 
     public @property DuvStreamClosedDelegate onClosed() {
       return this._onClosed;
@@ -401,6 +457,7 @@ See_Also: Default
     }
 
     package this(uv_handle_type handleType, DuvLoop loop) {
+      this._isOpen = true;
       this.ptr = duv_alloc_handle(handleType);
       debug {
         writefln("Creating Stream handle with type %d", handleType);
@@ -440,21 +497,22 @@ See_Also: Default
       debug {
         writeln("_onReadCallback, nread=", nread);
       }
+      DUVError error = lastDUVError(this.loop);
       if(nread == -1) {
-        Throwable error = lastUVThrowable(this.loop);
+        buf.free();
         if(this._onRead != null) {
           this._onRead(this, error, null);
         }
         // we must always close the stream after an error
-        this.close();
+        this.internalClose();
       } else {
         // Notify the Readed Buffer
         DuvTempBuffer tempBuffer = new DuvTempBuffer(buf, cast(size_t)nread);
         if(this._onRead != null) {
-          this._onRead(this, null, tempBuffer);
+          this._onRead(this, error, tempBuffer);
         }
+        buf.free();
       }
-      buf.free();
     }
    
     Fiber _readFiber;
@@ -464,7 +522,7 @@ See_Also: bind4, bind6
      */
     public ubyte[] read() {
       _readFiber = Fiber.getThis();
-      Throwable readError = null;
+      DUVError readError;
       ubyte[] result = null;
       debug {
         writeln("ReadSync");
@@ -481,17 +539,36 @@ See_Also: bind4, bind6
       Fiber.yield();
       _readFiber = null;
       uv_read_stop(this.ptr);
-      if(readError !is null) {
+      if(!readError.ok()) {
         debug {
-          writeln("Read Error was ", readError);
+          writeln("Read Error was ", readError.errorMessage);
           writeln("Error was found while reading");
         }
-        throw readError;
+        /*Fiber.yieldAndThrow(readError);
+        return null;*/
+        debug {
+          writeln("Will Throw Duv Exception");
+        }
+        throw new DuvException(readError.errorMessage, readError.err.code);
       }
       return result;
     }
 
-    public void close() {
+    private Fiber _closeFiber;
+    public bool close() {
+      if(this.isOpen) {
+        debug {
+          writeln("DuvStream will close");
+        }
+        _closeFiber = Fiber.getThis();
+        this.internalClose();
+        Fiber.yield();
+        return true;
+      }
+      return false;
+    }
+
+    private void internalClose() {
       uv_close(this.ptr, &duv_stream_close_callback);
     }
 
@@ -499,8 +576,14 @@ See_Also: bind4, bind6
       debug {
         writeln("DuvStream was closed");
       }
+      _isOpen = false;
       if(this._onClosed != null) {
         this._onClosed(this);
+      }
+      Fiber fiber = _closeFiber;
+      _closeFiber = null;
+      if(fiber) {
+        fiber.call();
       }
     }
 

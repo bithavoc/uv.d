@@ -1,5 +1,5 @@
 CFLAGS=-arch i386 #only for 32 bits
-DFLAGS=-m32 $(DUV_FLAGS)
+DFLAGS=-m32 $(DUV_FLAGS) -g -gs -gc
 EXAMPLES_FLAGS=-Isrc/ $(DFLAGS)
 
 build: duv
