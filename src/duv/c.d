@@ -2,6 +2,8 @@ module duv.c;
 import std.conv;
 import std.c.stdlib;
 import std.stdint;
+import std.bitmanip;
+import std.stdint;
 
 alias void* uv_tcp_t_ptr;
 alias void* uv_stream_t_ptr;
@@ -132,3 +134,33 @@ uv_timer_t* duv_alloc_timer();
 duv_status uv_timer_init(uv_loop_t_ptr loop, uv_timer_t *timer);
 duv_status uv_timer_start(uv_timer_t *timer, uv_timer_cb cb, long timeout, long repeat);
 duv_status uv_timer_stop(uv_timer_t *timer);
+
+struct http_parser {
+  mixin(bitfields!(ubyte, "type", 2, ubyte, "flags", 6));
+  ubyte state, header_state, index;
+  uint32_t nread;
+  uint32_t content_length;
+  ushort http_major, http_minor, status_code;
+  ubyte method;
+  mixin(bitfields!(ubyte, "http_errno", 7, ubyte, "ugprade", 1));
+  void * data;
+}
+
+alias int function (http_parser*, ubyte *at, size_t length) http_data_cb;
+alias int function (http_parser*) http_cb;
+
+enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
+
+struct http_parser_settings {
+  http_cb      on_message_begin;
+  http_data_cb on_url;
+  http_data_cb on_header_field;
+  http_data_cb on_header_value;
+  http_cb      on_headers_complete;
+  http_data_cb on_body;
+  http_cb      on_message_complete;
+};
+
+void http_parser_init(http_parser *parser, http_parser_type type);
+void http_parser_execute(http_parser *parser, http_parser_settings *settings, ubyte * data, size_t len);
+

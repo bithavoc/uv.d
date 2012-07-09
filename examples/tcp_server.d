@@ -13,14 +13,6 @@ void main() {
       client.onClosed = (timer) {
         writeln("Client Connection was Closed");
       };
-      auto timer = new DuvTimer(defaultLoop);
-      timer.callback = (timer) {
-        writeln("Closing the Client by Timer");
-        bool didClose = client.close();
-        writeln("Client was closed?", didClose);
-      };
-      timer.setTimeout(2000);
-      timer.start();
       client.write(cast(ubyte[])"Hello\n... and Goodbye\n");
       try {
         auto response = client.read();

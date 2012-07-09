@@ -8,6 +8,7 @@ void main() {
     client.onClosed = (connection) {
       writeln("Connection to the server was terminated");
     };
+    writeln("Connecting 2");
     client.connect4("0.0.0.0", 3000);
     writeln("Receiving Data");
     int count = 0;

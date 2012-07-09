@@ -58,9 +58,6 @@ private {
 
   extern (C) {
 
-    /**
-      * EXPERIMENTAL: FIBER EXPERIMENTAL CALLBACK
-     */
     void duv_on_tcp_stream_connect_fiber(void* handle, int status) {
       debug {
         writeln("TCP Connect callback called");
@@ -106,6 +103,9 @@ private {
     }
     
     void duv_tcp_connect_callback(uv_connect_t_ptr req, duv_status status) {
+      debug {
+        writeln("Connect Finished");
+      }
       debug {
         writeln("Connect Finished");
       }
@@ -330,8 +330,14 @@ See_Also: Default
       this._stream = stream;
       this._onFinished = onFinished;
       this.data = data;
+      debug {
+        writeln("Allocating connect Request");
+      }
       this.ptr = duv_alloc_connect();
       duv_set_request_data(this.ptr, cast(void*)this);
+      debug {
+        writeln("Allocated connect Request");
+      }
     }
 
     public ~this() {
@@ -601,11 +607,20 @@ See_Also: bind4, bind6
       uv_buf_t buf;
       buf.base = data.ptr;
       buf.len = data.length;
+      debug {
+        writeln("uv_write will be invoked");
+      }
       duv_status status = uv_write(write.ptr, this.ptr, &buf, 1, &duv_stream_write_callback);
+      debug {
+        writefln("uv_write status %s", status);
+      }
       ensureSuccessCall(status, this.loop);
       Fiber.yield();
       if(writeErr) {
         Fiber.yieldAndThrow(writeErr);
+      }
+      debug {
+        writefln("uv_write sucedded");
       }
     }
 
@@ -656,6 +671,9 @@ See_Also: bind4, bind6
       }
       duv_status status = uv_tcp_init(this.loop.ptr, this.ptr);
       ensureSuccessCall(status, this.loop);
+      debug {
+        writeln("TCP Stream initialized");
+      }
     }
 
     /**
@@ -720,20 +738,46 @@ See_Also: bind4, bind6
     }
 
     alias void delegate(DuvTcpStream stream, Throwable error) DuvTcpStreamConnectDelegate;
-    private Fiber _connectFiber;
     public void connect4(string ipv4, int port) {
+      Fiber _connectFiber;
+      debug {
+        writefln("will connect");
+      }
       Throwable connectError = null;
+      debug {
+        writefln("will create tcp connect request");
+      }
       auto request = new DuvTcpStreamConnectRequest(this, (stream, error) {
+          debug {
+            writefln("tcp_connect callback called");
+          }
           connectError = error;
           _connectFiber.call();
       });
       this._connectRequest = request;
+      debug {
+        writefln("duv_ip4_addr");
+      }
       sockaddr_in_ptr addr = duv_ip4_addr(std.string.toStringz(ipv4), port);
+      debug {
+        writefln("duv_tcp_connect");
+      }
+      assert(request.ptr, "request ptr should be valid");
+      assert(this.ptr, "this.ptr should be valid");
       duv_status status = duv_tcp_connect(request.ptr, this.ptr, addr, &duv_tcp_connect_callback);
+      debug {
+        writefln("tcp_connect status %s", status);
+      }
       std.c.stdlib.free(addr);
       ensureSuccessCall(status, this.loop);
       _connectFiber = Fiber.getThis();
+      debug {
+        writefln("tcp_connect will yield");
+      }
       Fiber.yield();
+      debug {
+        writefln("tcp_connect will continue after yield");
+      }
       _connectFiber = null;
       _connectRequest = null;
       if(connectError) {

@@ -25,7 +25,7 @@ int main() {
     timer.setTimeout(2000);
     timer.setRepeat(2000);
     int lastCount = 0;
-    timer.setCallback((timer) {
+    timer.callback = (timer) {
       writefln("It's time to check out something!, %s", lastClient);
       if(lastClient) {
         lastCount++;
@@ -38,7 +38,7 @@ int main() {
           timer.stop();
         }
       }
-    });
+    };
     timer.start();
     while(true) {
       writeln("== Will Accept Client ==");

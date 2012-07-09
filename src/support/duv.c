@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "uv.h"
+#include "http_parser.h"
 
 #define CORE_DEFINE_ALLOC(NAME, UV_TYPE) \
   void* duv_alloc_##NAME() { return malloc(sizeof(UV_TYPE)); }
@@ -60,5 +61,6 @@ uv_connect_t* duv_alloc_connect() {
 }
 
 int duv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle, struct sockaddr_in* addr, uv_connect_cb cb) {
-  return uv_tcp_connect(req, handle, *addr, cb);
+  int status =  uv_tcp_connect(req, handle, *addr, cb);
+  return status;
 }
