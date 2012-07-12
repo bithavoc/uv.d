@@ -135,7 +135,7 @@ duv_status uv_timer_init(uv_loop_t_ptr loop, uv_timer_t *timer);
 duv_status uv_timer_start(uv_timer_t *timer, uv_timer_cb cb, long timeout, long repeat);
 duv_status uv_timer_stop(uv_timer_t *timer);
 
-struct http_parser {
+/*struct http_parser {
   mixin(bitfields!(ubyte, "type", 2, ubyte, "flags", 6));
   ubyte state, header_state, index;
   uint32_t nread;
@@ -144,7 +144,8 @@ struct http_parser {
   ubyte method;
   mixin(bitfields!(ubyte, "http_errno", 7, ubyte, "ugprade", 1));
   void * data;
-}
+}*/
+struct http_parser;
 
 alias int function (http_parser*, ubyte *at, size_t length) http_data_cb;
 alias int function (http_parser*) http_cb;
@@ -162,5 +163,15 @@ struct http_parser_settings {
 };
 
 void http_parser_init(http_parser *parser, http_parser_type type);
-void http_parser_execute(http_parser *parser, http_parser_settings *settings, ubyte * data, size_t len);
+size_t http_parser_execute(http_parser *parser, http_parser_settings *settings, ubyte * data, size_t len);
 
+const(char) * duv_http_errno_name(http_parser *parser);
+const(char) * duv_http_errno_description(http_parser *parser);
+
+http_parser * duv_alloc_http_parser();
+void duv_free_http_parser(http_parser * parser);
+
+void duv_set_http_parser_data(http_parser * parser, void * data);
+void * duv_get_http_parser_data(http_parser * parser);
+
+ubyte duv_http_parser_get_errno(http_parser * parser);

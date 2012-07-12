@@ -64,3 +64,33 @@ int duv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle, struct sockaddr_in* add
   int status =  uv_tcp_connect(req, handle, *addr, cb);
   return status;
 }
+
+http_parser * duv_alloc_http_parser() {
+  return malloc(sizeof(http_parser));
+}
+
+void duv_free_http_parser(http_parser * parser) {
+  free(parser);
+}
+
+const char * duv_http_errno_name(http_parser *parser) {
+  enum http_errno err = HTTP_PARSER_ERRNO(parser);
+  return http_errno_name(err);
+}
+
+const char * duv_http_errno_description(http_parser *parser) {
+  enum http_errno err = HTTP_PARSER_ERRNO(parser);
+  return http_errno_description(err);
+}
+
+void * duv_get_http_parser_data(http_parser * parser) {
+  return parser->data;
+}
+
+void duv_set_http_parser_data(http_parser * parser, void* data) {
+  parser->data = data;
+}
+
+unsigned char duv_http_parser_get_errno(http_parser * parser) {
+  return parser->http_errno;
+}

@@ -1,7 +1,7 @@
 OS_NAME=$(shell uname -s)
 MH_NAME=$(shell uname -m)
 CFLAGS=-arch i386 #only for 32 bits
-DFLAGS=-m32 $(DUV_FLAGS)
+DFLAGS=-m32 -gc -gs -g $(DUV_FLAGS)
 ifeq (${OS_NAME},Darwin)
 	DFLAGS+=-L-framework -LCoreServices 
 endif
@@ -10,10 +10,10 @@ EXAMPLES_FLAGS=-Isrc/ $(DFLAGS)
 
 build: duv
 
-test: duv test/webserver.d
-		dmd -ofout/webserver test/webserver.d out/duv.a -debug -Isrc/ $(DFLAGS)
-		chmod +x out/webserver
-		out/./webserver
+test: test/*.d duv
+	dmd -ofout/tests.app -unittest -Iout/di out/duv.a test/*.d $(DFLAGS)
+	chmod +x out/tests.app
+	out/tests.app
 
 examples: duv examples/*
 		mkdir -p out/examples

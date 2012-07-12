@@ -19,7 +19,7 @@ void main() {
       while(true) {
         writeln("Reading Data");
         ubyte[] data = client.read();
-        writefln("Parsing Http Data %s", cast(string)data);
+        //writefln("Parsing Http Data %s", cast(string)data);
         parser.execute(data);
       }
     }
