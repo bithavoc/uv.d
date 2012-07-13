@@ -16,6 +16,7 @@ alias uv_connect_t* uv_connect_t_ptr;
 struct sockaddr_in; // IPv4
 alias sockaddr_in* sockaddr_in_ptr;
 struct uv_timer_t;
+struct uv_prepare_t;
 
 //alias void* uv_connection_cb;
 enum uv_handle_type {
@@ -175,3 +176,12 @@ void duv_set_http_parser_data(http_parser * parser, void * data);
 void * duv_get_http_parser_data(http_parser * parser);
 
 ubyte duv_http_parser_get_errno(http_parser * parser);
+
+uv_prepare_t * duv_alloc_prepare();
+void duv_free_prepare(uv_prepare_t * p);
+
+duv_status uv_prepare_init(uv_loop_t_ptr, uv_prepare_t* prepare);
+
+duv_status uv_prepare_start(uv_prepare_t * prepare, void function(uv_prepare_t *prepare, duv_status status) cb);
+
+duv_status uv_prepare_stop(uv_prepare_t* prepare);

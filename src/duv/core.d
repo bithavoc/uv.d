@@ -795,5 +795,70 @@ See_Also: bind4, bind6
     }
   }
 
+  alias void delegate(DuvPrepare) DuvPrepareCallback;
+  class DuvPrepare {
+    private {
+      uv_prepare_t * _ptr;
+      DuvPrepareCallback _callback;
+      extern (C) {
+        static void duv_prepare_callback(uv_prepare_t * p, duv_status status) {
+          debug {
+            writeln("prepare callback was called");
+          }
+          DuvPrepare self = cast(DuvPrepare)duv_get_handle_data(p);
+          self._onCallback(status);
+        }
+        static void duv_prepare_close_callback(void * p) {
 
+        }
+      }
+      void _onCallback(duv_status status) {
+        if(_callback) {
+          runSubDuv((loop) {
+            _callback(this);
+          });
+        }
+      }
+      DuvLoop _loop;
+      bool _started;
+    }
+    public {
+      this(DuvLoop loop) {
+        _loop = loop;
+        _ptr = duv_alloc_prepare();
+        duv_set_handle_data(_ptr, cast(void*)this);
+        duv_status status = uv_prepare_init(loop.ptr, this._ptr);
+        ensureSuccessCall(status, loop);
+      }
+
+      @property DuvPrepareCallback callback() {
+        return _callback;
+      }
+      @property void callback(DuvPrepareCallback callback) {
+        _callback = callback;
+      }
+      @property bool started() {
+        return _started;
+      }
+
+      void start() {
+        duv_status status = uv_prepare_start(this._ptr, &duv_prepare_callback);
+        ensureSuccessCall(status, _loop);
+      }
+
+      void stop() {
+        if(!this.started) return;
+        duv_status status = uv_prepare_stop(this._ptr);
+        ensureSuccessCall(status, _loop);
+      }
+
+      ~this() {
+        if(_ptr) {
+          stop();
+          uv_close(this._ptr, &duv_prepare_close_callback);
+          _ptr = null;
+        }
+      }
+    }
+  }
 } // public

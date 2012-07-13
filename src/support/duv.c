@@ -94,3 +94,11 @@ void duv_set_http_parser_data(http_parser * parser, void* data) {
 unsigned char duv_http_parser_get_errno(http_parser * parser) {
   return parser->http_errno;
 }
+
+uv_prepare_t * duv_alloc_prepare() {
+  return malloc(sizeof(uv_prepare_t));
+}
+
+void duv_free_prepare(uv_prepare_t * p) {
+  free(p);
+}
