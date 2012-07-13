@@ -66,7 +66,7 @@ public class HttpParser {
 
     // delegates
     HttpParserDelegate _messageBegin, _messageComplete, _headersComplete;
-    HttpParserDataDelegate _onData;
+    HttpParserDataDelegate _onBody;
     HttpParserStringDelegate _onUrl;
     Throwable _lastException;
 
@@ -128,11 +128,11 @@ public class HttpParser {
       _headersComplete = callback;
     }
 
-    @property HttpParserDataDelegate onData() {
-      return _onData;
+    @property HttpParserDataDelegate onBody() {
+      return _onBody;
     }
-    @property void onData(HttpParserDataDelegate callback) {
-      _onData = callback;
+    @property void onBody(HttpParserDataDelegate callback) {
+      _onBody = callback;
     }
 
     @property HttpParserStringDelegate onUrl() {
@@ -197,8 +197,15 @@ public class HttpParser {
     }
 
     int _on_body(ubyte[] data) {
-      writefln("Body '%s'", cast(string)data);
-      return 0;
+      if(this._onBody) {
+        try {
+          _onBody(this, data);
+        } catch(Throwable ex) {
+          _lastException = ex;
+          return CB_ERR;
+        }
+      }
+      return CB_OK;
     }
   }
 

@@ -49,6 +49,20 @@ unittest {
           assert(lastException !is null, "Custom exception was not cached and throwed by the execute method");
           assert(lastException.msg == customErrorMessage, "Exception raised doesn't have the given exception");
         });
+        runTest("onBody", {
+          Exception lastException;
+          auto parser = new HttpParser();
+          parser.onBody = (parser, ubyte[] data) {
+            throw new Exception(customErrorMessage);
+          };
+          try {
+            parser.execute(cast(ubyte[])"GET / HTTP/1.1\r\nContent-Length: 3\r\n\r\naaa");
+          } catch(Exception ex) {
+            lastException = ex;
+          }
+          assert(lastException !is null, "Custom exception was not cached and throwed by the execute method");
+          assert(lastException.msg == customErrorMessage, "Exception raised doesn't have the given exception");
+        });
       });
     });
   }
