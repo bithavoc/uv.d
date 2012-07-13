@@ -181,9 +181,15 @@ public class HttpParser {
     }
 
     int _on_url(ubyte[] data) {
-      writeln("HTTP URL FOUND");
-      writefln("URL '%s'", cast(string)data);
-      return 0;
+      if(this._onUrl) {
+        try {
+          _onUrl(this, cast(string)data);
+        } catch(Throwable ex) {
+          _lastException = ex;
+          return CB_ERR;
+        }
+      }
+      return CB_OK;
     }
 
     int _on_header_value(ubyte[] data) {
