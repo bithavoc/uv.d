@@ -5,20 +5,33 @@ import std.stdio;
 import std.conv;
 
 public struct HttpHeader {
-  private string _name, _value;
+  package string _name, _value;
 
-  public @property name() {
-    return _name;
-  }
-  public @property name(string name) {
-    _name = name;
-  }
-  public @property value() {
-    return _value;
-  }
-  public @property value(string value) {
-    _value = value;
-  }
+  public:
+    @property name() {
+      return _name;
+    }
+    @property name(string name) {
+      _name = name;
+    }
+    @property value() {
+      return _value;
+    }
+    @property value(string value) {
+      _value = value;
+    }
+
+    @property bool hasValue() {
+      return _value !is null;
+    }
+
+    @property bool hasName() {
+      return _name !is null;
+    }
+
+    @property bool isEmpty() {
+      return !hasName() && !hasValue();
+    }
 }
 private {
   template http_parser_cb(string Name) {
@@ -46,6 +59,7 @@ public class HttpParserException : Exception {
 public alias void delegate(HttpParser) HttpParserDelegate;
 public alias void delegate(HttpParser, ubyte[] data) HttpParserDataDelegate;
 public alias void delegate(HttpParser, string data) HttpParserStringDelegate;
+public alias void delegate(HttpParser, HttpHeader header) HttpParserHeaderDelegate;
 
 public class HttpParser {
   private {
@@ -62,17 +76,36 @@ public class HttpParser {
 
     http_parser* _parser;
     http_parser_settings _settings;
-    HttpHeader currentHeader;
 
     // delegates
     HttpParserDelegate _messageBegin, _messageComplete, _headersComplete;
     HttpParserDataDelegate _onBody;
     HttpParserStringDelegate _onUrl;
+    HttpParserHeaderDelegate _onHeader;
     Throwable _lastException;
 
     const int CB_OK = 0;
     const int CB_ERR = 1;
+
+    /** Begin Counters
+      Countes are reset every time a new message is received. Check _resetCounters.
+      */
+    int _headerFields;
+    int _headerValues;
+    HttpHeader _currentHeader;
+
+    void _resetCounters() {
+      _headerFields = 0;
+      _headerValues = 0;
+      _resetCurrentHeader();
+    }
+
+    void _resetCurrentHeader() {
+      clear(_currentHeader);
+    }
+    /** End Counters **/
   }
+
 
   public {
     this() {
@@ -141,10 +174,18 @@ public class HttpParser {
     @property void onUrl(HttpParserStringDelegate callback) {
       _onUrl = callback;
     }
+
+    @property HttpParserHeaderDelegate onHeader() {
+      return _onHeader;
+    }
+    @property void onHeader(HttpParserHeaderDelegate callback) {
+      _onHeader = callback;
+    }
   }
 
   package {
     int _on_message_begin() {
+      _resetCounters();
       if(this._messageBegin) {
         try {
           _messageBegin(this);
@@ -168,17 +209,6 @@ public class HttpParser {
       return CB_OK;
     }
     
-    int _on_headers_complete() {
-      if(this._headersComplete) {
-        try {
-          _headersComplete(this);
-        } catch(Throwable ex) {
-          _lastException = ex;
-          return CB_ERR;
-        }
-      }
-      return CB_OK;
-    }
 
     int _on_url(ubyte[] data) {
       if(this._onUrl) {
@@ -191,15 +221,54 @@ public class HttpParser {
       }
       return CB_OK;
     }
-
-    int _on_header_value(ubyte[] data) {
-      writefln("Header Value '%s'", cast(string)data);
-      return 0;
+    
+    int _on_header_field(ubyte[] data) {
+      if(_currentHeader.hasValue) {
+        int res = _safePublishHeader();
+        _resetCurrentHeader();
+        if(res != CB_OK) {
+          return res;
+        }
+      }
+      string text = cast(string)data;
+      _currentHeader._name ~= text;
+      return CB_OK;
     }
 
-    int _on_header_field(ubyte[] data) {
-      writefln("Header Field '%s'", cast(string)data);
-      return 0;
+    int _on_header_value(ubyte[] data) {
+      string text = cast(string)data;
+      _currentHeader._value ~= text;
+      return CB_OK;
+    }
+
+    int _safePublishHeader() {
+      try {
+        _publishHeader();
+      } catch(Throwable ex) {
+        _lastException = ex;
+        return CB_ERR;
+      }
+      return CB_OK;
+    }
+    void _publishHeader() {
+      if(_currentHeader.isEmpty) return;
+
+      if(this._onHeader) {
+        this._onHeader(this, _currentHeader);
+      }
+    }
+
+    int _on_headers_complete() {
+      try {
+        _publishHeader();
+        if(this._headersComplete) {
+          _headersComplete(this);
+        }
+      } catch(Throwable ex) {
+        _lastException = ex;
+        return CB_ERR;
+      }
+      return CB_OK;
     }
 
     int _on_body(ubyte[] data) {
