@@ -404,11 +404,15 @@ See_Also: Default
           }
         }
         if(freeFiber) {
-          writeln("Recycling Fiber, Fiber Count ", _fibers.length);
+          debug {
+            writeln("Recycling Fiber, Fiber Count ", _fibers.length);
+          }
           freeFiber.reset();
           freeFiber.call();
         } else {
-          writeln("Creating Fiber, Fiber Count ", _fibers.length);
+          debug {
+            writeln("Creating Fiber, Fiber Count ", _fibers.length);
+          }
           DuvFiber fiber = runSubDuv((loop) {
             _callback(this);
           });
@@ -860,5 +864,10 @@ See_Also: bind4, bind6
         }
       }
     }
+  } // DuvPrepare
+
+  class DuvAsyncContext {
+
   }
+
 } // public
