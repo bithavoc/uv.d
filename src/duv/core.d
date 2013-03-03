@@ -366,13 +366,13 @@ See_Also: Default
     public void setTimeout(long timeout) {
       _timeout = timeout;
     }
-    public @property repeat() {
+    public @property long repeat() {
       return _repeat;
     }
     public void setRepeat(long repeat) {
       _repeat = repeat;
     }
-    public @property callback() {
+    public @property DuvTimerCallback callback() {
       return _callback;
     }
     public @property void callback(DuvTimerCallback callback) {
@@ -450,7 +450,7 @@ See_Also: Default
     private DuvStreamWriteRequest[ssize_t] _writes;
     private bool _isOpen;
 
-    public @property isOpen() {
+    public @property bool isOpen() {
       return _isOpen;
     }
 

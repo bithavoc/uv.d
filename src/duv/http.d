@@ -8,16 +8,16 @@ public struct HttpHeader {
   package string _name, _value;
 
   public:
-    @property name() {
+    @property string name() {
       return _name;
     }
-    @property name(string name) {
+    @property void name(string name) {
       _name = name;
     }
-    @property value() {
+    @property string value() {
       return _value;
     }
-    @property value(string value) {
+    @property void value(string value) {
       _value = value;
     }
 
