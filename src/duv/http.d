@@ -4,6 +4,12 @@ import duv.c;
 import std.stdio;
 import std.conv;
 
+enum HttpParserType {
+  REQUEST,
+  RESPONSE,
+  BOTH
+};
+
 public struct HttpHeader {
   package string _name, _value;
 
@@ -67,6 +73,7 @@ public class HttpParser {
     extern(C) {
       mixin(http_parser_cb!("on_message_begin"));
       mixin(http_parser_data_cb!("on_url"));
+      mixin(http_parser_cb!("on_status_complete"));
       mixin(http_parser_data_cb!("on_header_value"));
       mixin(http_parser_data_cb!("on_header_field"));
       mixin(http_parser_cb!("on_headers_complete"));
@@ -76,9 +83,10 @@ public class HttpParser {
 
     http_parser* _parser;
     http_parser_settings _settings;
+    HttpParserType _type;
 
     // delegates
-    HttpParserDelegate _messageBegin, _messageComplete, _headersComplete;
+    HttpParserDelegate _messageBegin, _messageComplete, _headersComplete, _statusComplete;
     HttpParserDataDelegate _onBody;
     HttpParserStringDelegate _onUrl;
     HttpParserHeaderDelegate _onHeader;
@@ -108,12 +116,19 @@ public class HttpParser {
 
 
   public {
+
     this() {
+      this(HttpParserType.REQUEST);
+    }
+
+    this(HttpParserType type) {
+      _type = type;
       _parser = duv_alloc_http_parser();
       duv_set_http_parser_data(_parser, cast(void*)this);
-      http_parser_init(_parser, http_parser_type.HTTP_REQUEST);
+      http_parser_init(_parser, cast(http_parser_type)type);
       _settings.on_message_begin = &duv_http_parser_on_message_begin;
       _settings.on_message_complete = &duv_http_parser_on_message_complete;
+      _settings.on_status_complete = &duv_http_parser_on_status_complete;
       _settings.on_header_field = &duv_http_parser_on_header_field;
       _settings.on_header_value = &duv_http_parser_on_header_value;
       _settings.on_headers_complete = &duv_http_parser_on_headers_complete;
@@ -140,6 +155,10 @@ public class HttpParser {
       return ret;
     }
 
+    @property HttpParserType type() {
+      return _type;
+    }
+
     @property HttpParserDelegate onMessageBegin() {
       return _messageBegin;
     }
@@ -152,6 +171,13 @@ public class HttpParser {
     }
     @property void onMessageComplete(HttpParserDelegate callback) {
       _messageComplete = callback;
+    }
+
+    @property HttpParserDelegate onStatusComplete() {
+      return _statusComplete;
+    }
+    @property void onStatusComplete(HttpParserDelegate callback) {
+      _statusComplete = callback;
     }
 
     @property HttpParserDelegate onHeadersComplete() {
@@ -208,8 +234,19 @@ public class HttpParser {
       }
       return CB_OK;
     }
-    
 
+    int _on_status_complete() {
+      if(this._statusComplete) {
+        try {
+          _statusComplete(this);
+        } catch(Throwable ex) {
+          _lastException = ex;
+          return CB_ERR;
+        }
+      }
+      return CB_OK;
+    }
+    
     int _on_url(ubyte[] data) {
       if(this._onUrl) {
         try {

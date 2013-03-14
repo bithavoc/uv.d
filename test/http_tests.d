@@ -77,6 +77,20 @@ unittest {
           assert(lastException !is null, "Custom exception was not cached and throwed by the execute method");
           assert(lastException.msg == customErrorMessage, "Exception raised doesn't have the given exception");
         });
+        runTest("onStatusComplete", {
+          Exception lastException;
+          auto parser = new HttpParser(HttpParserType.RESPONSE);
+          parser.onStatusComplete = (parser) {
+            throw new Exception(customErrorMessage);
+          };
+          try {
+            parser.execute(cast(ubyte[])"HTTP/1.1 200 OK\r\n");
+          } catch(Exception ex) {
+            lastException = ex;
+          }
+          assert(lastException !is null, "Custom exception was not cached and throwed by the execute method");
+          assert(lastException.msg == customErrorMessage, "Exception raised doesn't have the given exception");
+        });
       }); //Exceptions
       scopeTest("Headers", {
         runTest("chunked", {
@@ -122,6 +136,21 @@ unittest {
           assert(headers[0].value == "Value1", "Header 0 value did not match");
           assert(headers[1].name == "Header2", "Header 1 name did not match");
           assert(headers[1].value == "Value2", "Header 1 value did not match");
+        });
+        runTest("status", {
+          Exception lastException;
+          auto parser = new HttpParser(HttpParserType.RESPONSE);
+          bool callbackCalled = false;
+          parser.onStatusComplete = (parser) {
+            callbackCalled = true;
+          };
+          try {
+            parser.execute(cast(ubyte[])"HTTP/1.1 200 OK\r\n");
+          } catch(Exception ex) {
+            lastException = ex;
+          }
+          assert(lastException is null, "No exception should be throwed");
+          assert(callbackCalled, "onStatusCompleted callback must be invoked");
         });
       });
     }); //HttpParser
