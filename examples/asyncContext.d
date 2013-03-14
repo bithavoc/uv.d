@@ -128,7 +128,7 @@ void main() {
         enforce(jobId == workerJobId);
       }, jobId);
      
-      int jobId2 = jobId + 2;
+      /*int jobId2 = jobId + 2;
       auto job2 = duvSpawnThread(function void(Tid sender, int jobId) {
         for(;;) {
           //writeln("Receiveing inside Thread ", jobId);
@@ -139,13 +139,13 @@ void main() {
       }, (job, int workerJobId) {
         writefln("=>>>> Thread (By 2) Callback %s value from thread worker %s", jobId2, workerJobId);
         enforce(jobId2 == workerJobId);
-      }, jobId2);
+      }, jobId2);*/
       
       auto senderTimer = new DuvTimer(loop);
       senderTimer.callback = (timer) {
         writefln("Sending to Worker %s", jobId);
         job.send(jobId);
-        job2.send(jobId2);
+        //job2.send(jobId2);
         //senderTimer.stop();
       };
       senderTimer.setTimeout(500);
