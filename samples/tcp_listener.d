@@ -5,6 +5,7 @@ import core.memory;
 class listenerContext {
   public int acceptedCount; 
   public int written;
+  public int readCount;
 }
 
 void doWrite(uv_stream_t* client_connection, listenerContext writeContext) {
@@ -49,7 +50,15 @@ void main() {
       doWrite(cast(uv_stream_t*)client_connection, context);
 
       duv_read_start(cast(uv_stream_t*)client_connection, context, function (uv_stream_t * client_conn, Object readContext, size_t nread, ubyte[] data) {
-        writeln("Readed ", cast(string)data);
+        listenerContext context = cast(listenerContext)readContext;
+        context.readCount++;
+        writeln("Readed ", cast(string)data); 
+        context.readCount++;
+        if(context.readCount > 5) {
+          "stop reading".writeln;
+          uv_read_stop(client_conn).check();
+          return;
+        }
       });
   });
 

@@ -124,3 +124,5 @@ status duv_read_start(uv_stream_t * stream, Object context, duv_read_cb cb) {
   read_context.DUV_FREEZE();
   return duv__read_start(stream, cast(void*)read_context, &duv__read_callback);
 }
+
+extern (C) status uv_read_stop(uv_stream_t* stream);
