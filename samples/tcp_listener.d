@@ -62,15 +62,5 @@ void main() {
       });
   });
 
-  auto valor = await ^ { return "Hello"; };
-  writeln("valor: ", valor);
-
   uv_run(loop, uv_run_mode.UV_RUN_DEFAULT).check();
 }
-struct Await {
-  T opBinary(string op, T)(T delegate() rhs) {
-    static if (op == "^") return rhs();
-    else static assert(0, "Operator "~op~" not implemented");
-  }
-}
-static Await await;
