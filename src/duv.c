@@ -1,16 +1,34 @@
 #import "uv.h"
 #import <stdlib.h>
+#import <assert.h>
 
 typedef void * duv_ptr;
 
-//UV_EXTERN int duv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb);
+typedef void (*duv_read_cb)(uv_stream_t* stream, void * context, ssize_t nread, char * buff_data, size_t buff_len);
+
+//
+// Handle data pointer wrapper
+//
+typedef struct {
+  void * data;
+  duv_read_cb read_cb;
+  void * read_context;
+} duv_handle_context;
+
+
+duv_handle_context * duv_ensure_handle_context(uv_handle_t * handle) {
+  if(!handle->data) {
+    handle->data = malloc(sizeof(duv_handle_context));
+  }
+  return handle->data;
+}
 
 UV_EXTERN void duv_set_handle_data(uv_handle_t* handle, void* data) {
-  handle->data = data;
+  duv_ensure_handle_context(handle)->data = data;
 }
 
 UV_EXTERN void* duv_get_handle_data(uv_handle_t* handle) {
-  return handle->data;
+  return duv_ensure_handle_context(handle)->data;
 }
 
 UV_EXTERN int duv_tcp_bind4(uv_tcp_t* handle, char *ipv4, int port) {
@@ -53,7 +71,15 @@ uv_buf_t duv__alloc_cb(uv_handle_t* handle, size_t suggested_size) {
   return uv_buf_init(malloc(suggested_size), suggested_size);
 }
 
-UV_EXTERN int duv_read_start(uv_stream_t*, void * context, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
+void duv__read_cb_bridge(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
+  duv_handle_context * handle_context = duv_ensure_handle_context((uv_handle_t*)stream);
+  handle_context->read_cb(stream, handle_context->read_context, nread, buf.base, buf.len);
+}
 
+UV_EXTERN int duv__read_start(uv_stream_t * stream, void * context, duv_read_cb read_cb) {
+  duv_handle_context * handle_context = duv_ensure_handle_context((uv_handle_t*)stream);
+  handle_context->read_cb = read_cb;
+  handle_context->read_context = context;
+  return uv_read_start(stream, &duv__alloc_cb, &duv__read_cb_bridge);
 }
 

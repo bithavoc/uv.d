@@ -2,6 +2,7 @@ module duv.c;
 
 import std.c.stdlib;
 import std.string;
+import std.stdio;
 import duv.types;
 import core.memory;
 
@@ -99,5 +100,27 @@ status duv_write(uv_stream_t* handle, Object context, ubyte[] data, duv_write_ca
   return duv__write(handle, cast(void*)ctx, data.ptr, cast(int)data.length, &_duv_write_callback);
 }
 
+private {
+  alias extern (C) void function (uv_stream_t* stream, void * context, size_t nread, ubyte * buff_data, size_t buff_len) duv__read_cb;
+  extern (C) status duv__read_start(uv_stream_t * stream, void * context, duv__read_cb read_cb);
 
+  class duv_read_context {
+    public duv_read_cb callback;
+    public Object context;
+  }
+  extern (C) void duv__read_callback(uv_stream_t* stream, void * context, size_t nread, ubyte * buff_data, size_t buff_len) {
+    duv_read_context read_context = cast(duv_read_context)context;
+    ubyte[] data = buff_data[0..nread].dup; // duplicate the data since duv bridge function will destroy the buffer automatically
+    read_context.callback(stream, read_context.context, nread, data);
+  }
+}
 
+alias void function(uv_stream_t* stream, Object context, size_t nread, ubyte[] data) duv_read_cb;
+
+status duv_read_start(uv_stream_t * stream, Object context, duv_read_cb cb) {
+  duv_read_context read_context = new duv_read_context();
+  read_context.callback = cb;
+  read_context.context = context;
+  read_context.DUV_FREEZE();
+  return duv__read_start(stream, cast(void*)read_context, &duv__read_callback);
+}

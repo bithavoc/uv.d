@@ -14,7 +14,7 @@ void doWrite(uv_stream_t* client_connection, listenerContext writeContext) {
       writeStatus.check();
       listenerContext context = cast(listenerContext)contextObj;
       context.written++;
-      if(context.written > 0) {
+      if(context.written < 5) {
         doWrite(client_connection, context);
       }
   });
@@ -47,6 +47,10 @@ void main() {
       "accepting".writeln;
       uv_accept(listener, cast(uv_stream_t*)client_connection).check();
       doWrite(cast(uv_stream_t*)client_connection, context);
+
+      duv_read_start(cast(uv_stream_t*)client_connection, context, function (uv_stream_t * client_conn, Object readContext, size_t nread, ubyte[] data) {
+        writeln("Readed ", cast(string)data);
+      });
   });
 
   auto valor = await ^ { return "Hello"; };
