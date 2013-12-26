@@ -93,6 +93,14 @@ UV_EXTERN int duv__read_start(uv_stream_t * stream, void * context, duv_read_cb 
   return uv_read_start(stream, &duv__alloc_cb, &duv__read_cb_bridge);
 }
 
+UV_EXTERN int duv__read_stop(uv_stream_t* stream, void ** readContext) {
+  duv_handle_context * handle_context = duv_ensure_handle_context((uv_handle_t*)stream);
+  *readContext = handle_context->read_context;
+  handle_context->read_context = NULL;
+  handle_context->read_cb = NULL;
+  return uv_read_stop(stream);
+}
+
 
 void duv__handle_close_cb_bridge(uv_handle_t * handle) {
   duv_handle_context * handle_context = duv_ensure_handle_context(handle);
@@ -105,5 +113,4 @@ UV_EXTERN void duv__handle_close(uv_handle_t * handle, void * context, duv__hand
   handle_context->close_context = context;
   uv_close(handle, &duv__handle_close_cb_bridge);
 }
-
 

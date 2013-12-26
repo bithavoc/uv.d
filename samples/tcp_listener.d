@@ -56,7 +56,7 @@ void main() {
         context.readCount++;
         if(context.readCount > 5) {
           "stop reading".writeln;
-          uv_read_stop(client_conn).check();
+          duv_read_stop(client_conn).check();
           duv_handle_close(cast(uv_handle_t*)client_conn, null, function (uv_handle_t * handle, closeContext) {
               "client was closed".writeln;
           });
