@@ -126,3 +126,32 @@ status duv_read_start(uv_stream_t * stream, Object context, duv_read_cb cb) {
 }
 
 extern (C) status uv_read_stop(uv_stream_t* stream);
+
+private {
+    extern (C) void duv__clean_handle_context(uv_handle_t * handle);
+    alias extern (C) void function (uv_handle_t * handle, void * context) duv__handle_close_cb;
+    extern (C) void duv__handle_close(uv_handle_t * handle, void * context, duv__handle_close_cb close_cb);
+    class duv_close_context {
+        public duv_handle_close_cb callback;
+        public Object context;
+    }
+    extern (C) void duv__handle_close_callback(uv_handle_t * handle, void * context) {
+       duv_close_context close_context = cast(duv_close_context)context; 
+       close_context.callback(handle, close_context.context);
+       close_context.DUV_UNFREEZE();
+       duv__clean_handle_context(handle);
+       free(handle);
+    }
+}
+
+alias void function (uv_handle_t * handle, Object context) duv_handle_close_cb;
+
+void duv_handle_close(uv_handle_t* handle, Object context, duv_handle_close_cb cb) {
+    duv_close_context close_context  = new duv_close_context();
+    close_context.context = context;
+    close_context.callback = cb;
+    close_context.DUV_FREEZE();
+    duv__handle_close(handle, cast(void*)close_context, &duv__handle_close_callback);
+}
+
+

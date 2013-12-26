@@ -27,6 +27,8 @@ struct uv_tcp_t;
 
 struct uv_stream_t;
 
+struct uv_handle_t;
+
 enum uv_handle_type {
   UNKNOWN,
   ASYNC, 

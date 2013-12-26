@@ -6,6 +6,8 @@ typedef void * duv_ptr;
 
 typedef void (*duv_read_cb)(uv_stream_t* stream, void * context, ssize_t nread, char * buff_data, size_t buff_len);
 
+typedef void (*duv__handle_close_cb)(uv_handle_t * handle, void * context);
+
 //
 // Handle data pointer wrapper
 //
@@ -13,6 +15,8 @@ typedef struct {
   void * data;
   duv_read_cb read_cb;
   void * read_context;
+  void * close_context;
+  duv__handle_close_cb close_cb;
 } duv_handle_context;
 
 
@@ -21,6 +25,12 @@ duv_handle_context * duv_ensure_handle_context(uv_handle_t * handle) {
     handle->data = malloc(sizeof(duv_handle_context));
   }
   return handle->data;
+}
+
+void duv__clean_handle_context(uv_handle_t * handle) {
+    if(handle->data) {
+        free(handle->data);
+    }
 }
 
 UV_EXTERN void duv_set_handle_data(uv_handle_t* handle, void* data) {
@@ -82,4 +92,18 @@ UV_EXTERN int duv__read_start(uv_stream_t * stream, void * context, duv_read_cb 
   handle_context->read_context = context;
   return uv_read_start(stream, &duv__alloc_cb, &duv__read_cb_bridge);
 }
+
+
+void duv__handle_close_cb_bridge(uv_handle_t * handle) {
+  duv_handle_context * handle_context = duv_ensure_handle_context(handle);
+  handle_context->close_cb(handle, handle_context->close_context);
+}
+
+UV_EXTERN void duv__handle_close(uv_handle_t * handle, void * context, duv__handle_close_cb close_cb) {
+  duv_handle_context * handle_context = duv_ensure_handle_context(handle);
+  handle_context->close_cb = close_cb;
+  handle_context->close_context = context;
+  uv_close(handle, &duv__handle_close_cb_bridge);
+}
+
 
