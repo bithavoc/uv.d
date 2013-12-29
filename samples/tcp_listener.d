@@ -1,5 +1,5 @@
 import std.stdio;
-import duv.core;
+import duv;
 import core.memory;
 
 class listenerContext {
