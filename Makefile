@@ -24,12 +24,20 @@ duv.lib: lib/duv/*.d duv.c
 		rm -f out/duv.a
 		ar -r out/duv.a out/duv.c.o out/duv.lib.o
 
-uv:
+uv: deps/uv/build deps/uv/**/*
 		CFLAGS="$(CFLAGS)" $(MAKE) -C deps/uv/out
 		mkdir -p out
 		cp deps/uv/out/Debug/libuv.a $(lib_uv)
 
+.PHONY: clean
+
+deps/uv/build:
+	git submodule update --init --recursive
+	cd deps/uv; mkdir -p build
+	git clone https://git.chromium.org/external/gyp.git deps/uv/build/gyp
+	cd deps/uv ; ./gyp_uv.py -f make
+
+
 clean:
-		rm -rf out/*
-		$(MAKE) -C deps/uv distclean
-		$(MAKE) -C deps/http-parser clean
+		rm -rf out
+		rm -rf deps/*
