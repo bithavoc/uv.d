@@ -1,5 +1,6 @@
 import std.stdio;
-import duv;
+import duv.types;
+import duv.c;
 import core.memory;
 
 class listenerContext {
@@ -49,18 +50,20 @@ void main() {
       uv_accept(listener, cast(uv_stream_t*)client_connection).check();
       doWrite(cast(uv_stream_t*)client_connection, context);
 
-      duv_read_start(cast(uv_stream_t*)client_connection, context, function (uv_stream_t * client_conn, Object readContext, size_t nread, ubyte[] data) {
+      duv_read_start(cast(uv_stream_t*)client_connection, context, function (uv_stream_t * client_conn, Object readContext, ptrdiff_t nread, ubyte[] data) {
         listenerContext context = cast(listenerContext)readContext;
         context.readCount++;
-        writeln("Readed ", cast(string)data); 
         context.readCount++;
-        if(context.readCount > 5) {
+        "read nread ".writeln(nread);
+        if(nread < 0 || context.readCount > 5) {
           "stop reading".writeln;
           duv_read_stop(client_conn).check();
           duv_handle_close(cast(uv_handle_t*)client_conn, null, function (uv_handle_t * handle, closeContext) {
               "client was closed".writeln;
           });
           return;
+        } else {
+            writeln("Readed ", cast(string)data); 
         }
       });
   });

@@ -6,28 +6,28 @@ ifeq (${OS_NAME},Darwin)
 	DFLAGS+=-L-framework -LCoreServices 
 endif
 EXAMPLES_FLAGS=-Isrc/ $(DFLAGS)
-lib_uv=out/uv.a
+lib_uv=../out/uv.a
 DC=dmd
 
 
 build: duv.lib
 
 sample: duv.lib uv
-		$(DC) -ofout/tcp_listener.app -Iout/di samples/tcp_listener.d $(lib_uv) out/duv.a $(DFLAGS)
+		cd samples; $(DC) -of../out/tcp_listener.app -I../out/di tcp_listener.d $(lib_uv) ../out/duv.a $(DFLAGS)
 
 duv.c: src/duv.c uv
-		$(CC) -DEV_MULTIPLICITY=1 -Ideps/uv/include -Ideps/http-parser -o out/duv.c.o -c src/duv.c $(lib_uv) $(CFLAGS)
+		cd src; $(CC) -DEV_MULTIPLICITY=1 -I../deps/uv/include -I../deps/http-parser -o ../out/duv.c.o -c duv.c $(lib_uv) $(CFLAGS)
 
 duv.lib: lib/duv/*.d duv.c
 		mkdir -p out
-		$(DC) -ofout/duv.lib.o -Hdout/di/duv -c lib/duv/*.d out/duv.c.o $(lib_uv) $(DFLAGS)
+		cd lib; $(DC) -of../out/duv.lib.o -Hd../out/di -op -c duv/*.d ../out/duv.c.o $(lib_uv) $(DFLAGS)
 		rm -f out/duv.a
 		ar -r out/duv.a out/duv.c.o out/duv.lib.o
 
 uv: deps/uv/build deps/uv/**/*
 		CFLAGS="$(CFLAGS)" $(MAKE) -C deps/uv/out
 		mkdir -p out
-		cp deps/uv/out/Debug/libuv.a $(lib_uv)
+		cd deps; cp uv/out/Debug/libuv.a $(lib_uv)
 
 .PHONY: clean
 
