@@ -112,7 +112,7 @@ private {
     duv_read_context read_context = cast(duv_read_context)context;
     ubyte[] data = null;
     if(nread > -1) {
-        buff_data[0..nread].dup; // duplicate the data since duv bridge function will destroy the buffer automatically
+        data = buff_data[0..nread].dup; // duplicate the data since duv bridge function will destroy the buffer automatically
     }
     read_context.callback(stream, read_context.context, nread, data);
   }
@@ -166,3 +166,19 @@ void duv_handle_close(uv_handle_t* handle, Object context, duv_handle_close_cb c
     duv__handle_close(handle, cast(void*)close_context, &duv__handle_close_callback);
 }
 
+private {
+    extern (C) immutable (char)* uv_err_name(_uv_err_t err);
+    extern (C) immutable (char)* uv_strerror(_uv_err_t err);
+    extern (C) _uv_err_t uv_last_error(uv_loop_t* loop);
+}
+
+duv_error duv_last_error(status code, uv_loop_t* loop) {
+    duv_error error;
+    if(code < 0) {
+        error.code = code;
+        _uv_err_t err = uv_last_error(loop);
+        error.name = std.conv.to!string(uv_err_name(err));
+        error.message = std.conv.to!string(uv_strerror(err));
+    }
+    return error;
+}

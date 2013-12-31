@@ -58,12 +58,6 @@ template uv_handle_type_enum_to_struct(uv_handle_type handleType)
         alias uv_loop_t * uv_handle_type_enum_to_struct;
 }
 
-void check(status st) {
-	if(st < 0) {
-		throw new Exception("Something failed");
-	}
-}
-
 
 
 alias void function(uv_stream_t* stream, Object context,  status st) duv_listen_callback;
@@ -72,3 +66,20 @@ class duv_listen_request {
   public duv_listen_callback callback;
   public Object context;
 }
+
+//
+// Errors
+//
+
+
+struct duv_error {
+    int code;
+    string message;
+    string name;
+}
+
+struct _uv_err_t {
+    int code;
+    int sys_errno_;
+};
+
