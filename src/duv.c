@@ -22,7 +22,7 @@ typedef struct {
 
 duv_handle_context * duv_ensure_handle_context(uv_handle_t * handle) {
   if(!handle->data) {
-    handle->data = malloc(sizeof(duv_handle_context));
+    handle->data = calloc(1, sizeof(duv_handle_context));
   }
   return handle->data;
 }
@@ -114,3 +114,6 @@ UV_EXTERN void duv__handle_close(uv_handle_t * handle, void * context, duv__hand
   uv_close(handle, &duv__handle_close_cb_bridge);
 }
 
+UV_EXTERN void* duv__handle_alloc(uv_handle_type type) {
+    return calloc(1, uv_handle_size(type));
+}

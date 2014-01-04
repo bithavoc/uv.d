@@ -36,7 +36,7 @@ extern(C) size_t uv_handle_size(uv_handle_type type);
 extern(C) status uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle);
 
 uv_handle_type_enum_to_struct!(handleType) uv_handle_alloc(uv_handle_type handleType)() {
-	return cast(uv_handle_type_enum_to_struct!(handleType)) malloc(uv_handle_size(handleType));
+	return cast(uv_handle_type_enum_to_struct!(handleType)) duv__handle_alloc(handleType);
 }
 
 extern (C) void duv_set_handle_data(void* handle, void* data);
@@ -182,3 +182,4 @@ duv_error duv_last_error(status code, uv_loop_t* loop) {
     }
     return error;
 }
+extern(C) uv_handle_t* duv__handle_alloc(uv_handle_type type);
