@@ -30,10 +30,30 @@ void doWrite(uv_stream_t* client_connection, listenerContext writeContext) {
   });
 }
 
+class checkContext {
+    public int checkCount;
+    public ~this() {
+        writeln("destroying check context");
+    }
+}
+
 void main() {
   writeln("Duv TCP Server");
 
   uv_loop_t * loop = uv_default_loop();
+  uv_check_t * countCheck = uv_handle_alloc!(uv_handle_type.CHECK);
+  uv_check_init(loop, countCheck).check();
+  checkContext ccontext = new checkContext;
+  duv_check_start(countCheck, ccontext, (uv_check_t * handle, Object context, int status) {
+          auto ctx = cast(checkContext)context;
+          ctx.checkCount++;
+          writeln("Tick count ", ctx.checkCount);
+          if(ctx.checkCount == 10) {
+            writeln("Stopping tick count");
+            duv_check_stop(handle);
+          }
+  });
+
 
   writeln("Duv loop:", loop);
   "preparing listener".writeln;
@@ -61,7 +81,6 @@ void main() {
       duv_read_start(cast(uv_stream_t*)client_connection, context, function (uv_stream_t * client_conn, Object readContext, ptrdiff_t nread, ubyte[] data) {
         listenerContext context = cast(listenerContext)readContext;
         context.readCount++;
-        context.readCount++;
         "read nread ".writeln(nread);
         if(nread < 0 || context.readCount > 5) {
             if(nread < 0 ) {
@@ -78,6 +97,7 @@ void main() {
           duv_handle_close(cast(uv_handle_t*)client_conn, null, function (uv_handle_t * handle, closeContext) {
               "client was closed".writeln;
           });
+          context.readCount = 0;
           return;
         } else {
             writeln("Readed ", cast(string)data); 

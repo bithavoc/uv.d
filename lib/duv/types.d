@@ -29,6 +29,8 @@ struct uv_stream_t;
 
 struct uv_handle_t;
 
+struct uv_check_t;
+
 enum uv_handle_type {
   UNKNOWN,
   ASYNC, 
@@ -53,9 +55,10 @@ template uv_handle_type_enum_to_struct(uv_handle_type handleType)
 {
     static if( handleType == uv_handle_type.TCP)
         alias uv_tcp_t * uv_handle_type_enum_to_struct;
+    else static if( handleType == uv_handle_type.CHECK)
+        alias uv_check_t * uv_handle_type_enum_to_struct;
     else
-		// ?
-        alias uv_loop_t * uv_handle_type_enum_to_struct;
+        static assert(0, "handle type is not recognized");
 }
 
 
@@ -82,4 +85,8 @@ struct _uv_err_t {
     int code;
     int sys_errno_;
 };
+
+//
+// Check
+//
 

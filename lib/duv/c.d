@@ -183,3 +183,42 @@ duv_error duv_last_error(status code, uv_loop_t* loop) {
     return error;
 }
 extern(C) uv_handle_t* duv__handle_alloc(uv_handle_type type);
+
+alias void function(uv_check_t* handle, Object context, int status) duv_check_cb;
+private {
+    class duv_check_context {
+        public duv_check_cb callback;
+        public Object context;
+    }
+    alias extern (C) void function(uv_check_t* handle, void * context, int status) duv__check_cb;
+
+    extern (C) status duv__check_start(uv_check_t* handle, void * context, duv__check_cb cb);
+
+    extern (C) status duv__check_stop(uv_check_t* check);
+    extern (C) void* duv__get_context(uv_check_t* handle);
+
+    extern (C) void duv__check_callback(uv_check_t* handle, void * context, int status) {
+        duv_check_context ctx = cast(duv_check_context)context;
+        ctx.callback(handle, ctx.context, status);
+    }
+}
+
+extern (C) status uv_check_init(uv_loop_t* loop, uv_check_t* handle);
+
+status duv_check_start(uv_check_t * handle, Object context, duv_check_cb cb) {
+    duv_check_context ctx = new duv_check_context;
+    ctx.context = context;
+    ctx.callback = cb;
+    ctx.DUV_FREEZE();
+    return duv__check_start(handle, cast(void*)ctx, &duv__check_callback);
+}
+
+status duv_check_stop(uv_check_t * handle) {
+    void * context = duv__get_context(handle);
+    duv_check_context ctx = cast(duv_check_context)context;
+    ctx.context = null;
+    ctx.callback = null;
+    ctx.DUV_UNFREEZE();
+    return duv__check_stop(handle);
+}
+

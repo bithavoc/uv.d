@@ -117,3 +117,35 @@ UV_EXTERN void duv__handle_close(uv_handle_t * handle, void * context, duv__hand
 UV_EXTERN void* duv__handle_alloc(uv_handle_type type) {
     return calloc(1, uv_handle_size(type));
 }
+
+typedef void (*duv__check_cb)(uv_check_t* handle, void * context, int status);
+
+typedef struct {
+    void * context;
+    duv__check_cb cb;
+} duv_check_context_t;
+
+void duv__check_bridge_cb(uv_check_t * handle, int status) {
+    duv_check_context_t * ctx = (duv_check_context_t*)handle->data;
+    ctx->cb(handle, ctx->context, status);
+}
+
+UV_EXTERN int duv__check_start(uv_check_t* handle, void * context, duv__check_cb cb) {
+    duv_check_context_t * ctx = calloc(1, sizeof(duv_check_context_t));
+    handle->data = ctx;
+    ctx->context = context;
+    ctx->cb = cb;
+    return uv_check_start(handle, &duv__check_bridge_cb);
+}
+
+UV_EXTERN void* duv__get_context(uv_check_t* handle) {
+    duv_check_context_t * ctx = (duv_check_context_t*)handle->data; 
+    return ctx->context;
+}
+
+UV_EXTERN int duv__check_stop(uv_check_t* check) {
+    int st =  uv_check_stop(check);
+    free(check->data);
+    free(check);
+    return st;
+}
