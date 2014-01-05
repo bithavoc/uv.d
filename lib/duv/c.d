@@ -182,6 +182,11 @@ duv_error duv_last_error(status code, uv_loop_t* loop) {
     }
     return error;
 }
+
+@property bool hasError(duv_error err) {
+    return err.code < 0;
+}
+
 extern(C) uv_handle_t* duv__handle_alloc(uv_handle_type type);
 
 alias void function(uv_check_t* handle, Object context, int status) duv_check_cb;
