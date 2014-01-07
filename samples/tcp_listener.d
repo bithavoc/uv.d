@@ -102,7 +102,7 @@ void main() {
         } else {
             writeln("Readed ", cast(string)data); 
         }
-      });
+      }).check;
   });
 
   uv_run(loop, uv_run_mode.UV_RUN_DEFAULT).check();

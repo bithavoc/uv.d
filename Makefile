@@ -6,9 +6,9 @@ ifeq (${OS_NAME},Darwin)
 	DFLAGS+=-L-framework -LCoreServices 
 endif
 ifeq (${DEBUG}, 1)
-	DFLAGS=-debug -gc -gs -g
+	DFLAGS+=-debug -gc -gs -g
 else
-	DFLAGS=-O -release -inline -noboundscheck
+	DFLAGS+=-O -release -inline -noboundscheck
 endif
 EXAMPLES_FLAGS=-Isrc/ $(DFLAGS)
 lib_uv=../out/uv.a
