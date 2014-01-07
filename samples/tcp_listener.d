@@ -48,9 +48,12 @@ void main() {
           auto ctx = cast(checkContext)context;
           ctx.checkCount++;
           writeln("Tick count ", ctx.checkCount);
-          if(ctx.checkCount == 10) {
+          if(ctx.checkCount == 4) {
             writeln("Stopping tick count");
-            duv_check_stop(handle);
+            duv_check_stop(handle).check;
+            duv_handle_close(cast(uv_handle_t*)handle, null, function (uv_handle_t * handle, closeContext) {
+              "check handle was closed".writeln;
+            });
           }
   });
 

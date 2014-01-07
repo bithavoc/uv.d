@@ -7,23 +7,27 @@ typedef void * duv_ptr;
 typedef void (*duv_read_cb)(uv_stream_t* stream, void * context, ssize_t nread, char * buff_data, size_t buff_len);
 
 typedef void (*duv__handle_close_cb)(uv_handle_t * handle, void * context);
+typedef void (*duv__check_cb)(uv_check_t* handle, void * context, int status);
 
 //
 // Handle data pointer wrapper
 //
 typedef struct {
-  void * data;
-  duv_read_cb read_cb;
-  void * read_context;
-  void * close_context;
-  duv__handle_close_cb close_cb;
+    void * data;
+    duv_read_cb read_cb;
+    void * read_context;
+    void * close_context;
+    duv__handle_close_cb close_cb;
+    void * check_context;
+    duv__check_cb check_cb;
 } duv_handle_context;
 
 
 duv_handle_context * duv_ensure_handle_context(uv_handle_t * handle) {
-  if(!handle->data) {
-    handle->data = calloc(1, sizeof(duv_handle_context));
-  }
+    if(handle->data == NULL) {
+        duv_handle_context * ctx = calloc(1, sizeof(duv_handle_context));
+        handle->data = ctx;
+    }
   return handle->data;
 }
 
@@ -121,34 +125,24 @@ UV_EXTERN void* duv__handle_alloc(uv_handle_type type) {
     return calloc(1, uv_handle_size(type));
 }
 
-typedef void (*duv__check_cb)(uv_check_t* handle, void * context, int status);
-
-typedef struct {
-    void * context;
-    duv__check_cb cb;
-} duv_check_context_t;
 
 void duv__check_bridge_cb(uv_check_t * handle, int status) {
-    duv_check_context_t * ctx = (duv_check_context_t*)handle->data;
-    ctx->cb(handle, ctx->context, status);
+    duv_handle_context * handle_context = duv_ensure_handle_context((uv_handle_t*)handle);
+    handle_context->check_cb(handle, handle_context->check_context, status);
 }
 
 UV_EXTERN int duv__check_start(uv_check_t* handle, void * context, duv__check_cb cb) {
-    duv_check_context_t * ctx = calloc(1, sizeof(duv_check_context_t));
-    handle->data = ctx;
-    ctx->context = context;
-    ctx->cb = cb;
+    duv_handle_context * handle_context = duv_ensure_handle_context((uv_handle_t*)handle);
+    handle_context->check_context = context;
+    handle_context->check_cb = cb;
     return uv_check_start(handle, &duv__check_bridge_cb);
 }
 
-UV_EXTERN void* duv__get_context(uv_check_t* handle) {
-    duv_check_context_t * ctx = (duv_check_context_t*)handle->data; 
-    return ctx->context;
+UV_EXTERN void* duv__check_get_context(uv_check_t* handle) {
+    duv_handle_context * handle_context = duv_ensure_handle_context((uv_handle_t*)handle);
+    return handle_context->check_context;
 }
 
 UV_EXTERN int duv__check_stop(uv_check_t* check) {
-    int st =  uv_check_stop(check);
-    free(check->data);
-    free(check);
-    return st;
+    return uv_check_stop(check);
 }

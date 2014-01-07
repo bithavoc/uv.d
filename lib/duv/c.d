@@ -4,7 +4,7 @@ import std.c.stdlib;
 import std.string;
 import std.stdio;
 import duv.types;
-import core.memory;
+import core.memory : GC;
 
 void DUV_FREEZE(Object obj) {
 	DUV_FREEZE_PTR(cast(void*)obj);
@@ -140,7 +140,6 @@ status duv_read_stop(uv_stream_t* stream) {
 
 private {
     extern (C) status duv__read_stop(uv_stream_t* stream, void ** readContext);
-    extern (C) void duv__clean_handle_context(uv_handle_t * handle);
     alias extern (C) void function (uv_handle_t * handle, void * context) duv__handle_close_cb;
     extern (C) void duv__handle_close(uv_handle_t * handle, void * context, duv__handle_close_cb close_cb);
     class duv_close_context {
@@ -205,7 +204,7 @@ private {
     extern (C) status duv__check_start(uv_check_t* handle, void * context, duv__check_cb cb);
 
     extern (C) status duv__check_stop(uv_check_t* check);
-    extern (C) void* duv__get_context(uv_check_t* handle);
+    extern (C) void* duv__check_get_context(uv_check_t* handle);
 
     extern (C) void duv__check_callback(uv_check_t* handle, void * context, int status) {
         duv_check_context ctx = cast(duv_check_context)context;
@@ -224,11 +223,13 @@ status duv_check_start(uv_check_t * handle, Object context, duv_check_cb cb) {
 }
 
 status duv_check_stop(uv_check_t * handle) {
-    void * context = duv__get_context(handle);
+    void * context = duv__check_get_context(handle);
     duv_check_context ctx = cast(duv_check_context)context;
     ctx.context = null;
     ctx.callback = null;
     ctx.DUV_UNFREEZE();
-    return duv__check_stop(handle);
+    int st = duv__check_stop(handle);
+    delete ctx;
+    return st;
 }
 

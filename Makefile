@@ -1,12 +1,14 @@
 OS_NAME=$(shell uname -s)
 MH_NAME=$(shell uname -m)
 #CFLAGS=-arch i386 #only for 32 bits
+CFLAGS=
 DFLAGS=
 ifeq (${OS_NAME},Darwin)
 	DFLAGS+=-L-framework -LCoreServices 
 endif
 ifeq (${DEBUG}, 1)
 	DFLAGS+=-debug -gc -gs -g
+	CFLAGS+=-g
 else
 	DFLAGS+=-O -release -inline -noboundscheck
 endif
