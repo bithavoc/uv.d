@@ -51,9 +51,7 @@ void main() {
           if(ctx.checkCount == 4) {
             writeln("Stopping tick count");
             duv_check_stop(handle).check;
-            duv_handle_close(cast(uv_handle_t*)handle, null, function (uv_handle_t * handle, closeContext) {
-              "check handle was closed".writeln;
-            });
+            duv_handle_close_async(cast(uv_handle_t*)handle);
           }
   });
 
