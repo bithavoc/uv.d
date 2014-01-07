@@ -30,6 +30,7 @@ duv_handle_context * duv_ensure_handle_context(uv_handle_t * handle) {
 void duv__clean_handle_context(uv_handle_t * handle) {
     if(handle->data) {
         free(handle->data);
+        handle->data = NULL;
     }
 }
 
