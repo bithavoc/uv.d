@@ -155,6 +155,7 @@ private {
        close_context.DUV_UNFREEZE();
        delete close_context;
     }
+    extern (C) int uv_is_closing(uv_handle_t* handle);
 }
 
 alias void function (uv_handle_t * handle, Object context) duv_handle_close_cb;
@@ -165,6 +166,9 @@ void duv_handle_close(uv_handle_t* handle, Object context, duv_handle_close_cb c
     close_context.callback = cb;
     close_context.DUV_FREEZE();
     duv__handle_close(handle, cast(void*)close_context, &duv__handle_close_callback);
+}
+bool duv_is_closing(uv_handle_t* handle) {
+    return uv_is_closing(handle) != 0;
 }
 
 private {
