@@ -69,7 +69,7 @@ UV_EXTERN int duv__write(uv_stream_t* handle, void * context, char * data, int d
   uv_buf_t * bufs = malloc(sizeof(uv_buf_t));
   *bufs = uv_buf_init(data, data_len);
 
-  duv_write_request * req = malloc(sizeof(duv_write_request));
+  duv_write_request * req = calloc(1, sizeof(duv_write_request));
   req->connection = handle;
   req->context = context;
   req->bufs = bufs;

@@ -152,7 +152,7 @@ private {
        close_context.callback(handle, close_context.context);
        close_context.DUV_UNFREEZE();
        duv__clean_handle_context(handle);
-       free(handle);
+       std.c.stdlib.free(handle);
     }
 }
 
