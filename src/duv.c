@@ -105,6 +105,8 @@ UV_EXTERN int duv__read_stop(uv_stream_t* stream, void ** readContext) {
 void duv__handle_close_cb_bridge(uv_handle_t * handle) {
   duv_handle_context * handle_context = duv_ensure_handle_context(handle);
   handle_context->close_cb(handle, handle_context->close_context);
+  duv__clean_handle_context(handle);
+  free(handle);
 }
 
 UV_EXTERN void duv__handle_close(uv_handle_t * handle, void * context, duv__handle_close_cb close_cb) {
