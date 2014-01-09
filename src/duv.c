@@ -89,6 +89,7 @@ uv_buf_t duv__alloc_cb(uv_handle_t* handle, size_t suggested_size) {
 void duv__read_cb_bridge(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
   duv_handle_context * handle_context = duv_ensure_handle_context((uv_handle_t*)stream);
   handle_context->read_cb(stream, handle_context->read_context, nread, buf.base, buf.len);
+  free(buf.base);
 }
 
 UV_EXTERN int duv__read_start(uv_stream_t * stream, void * context, duv_read_cb read_cb) {

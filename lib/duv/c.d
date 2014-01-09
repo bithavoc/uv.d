@@ -88,6 +88,7 @@ private {
     duv_write_context ctx = cast(duv_write_context)context;
     ctx.DUV_UNFREEZE();
     ctx.callback(connection, ctx.context, st);
+    delete ctx;
   }
 }
 
