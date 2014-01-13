@@ -24,6 +24,7 @@ build: duv.lib
 
 sample: duv.lib uv
 		cd samples; $(DC) -of../out/tcp_listener.app -I../out/di tcp_listener.d $(lib_uv) ../out/duv.a $(DFLAGS)
+		cd samples; $(DC) -of../out/tcp_client.app -I../out/di tcp_client.d $(lib_uv) ../out/duv.a $(DFLAGS)
 
 duv.c: src/duv.c uv
 		cd src; $(CC) -DEV_MULTIPLICITY=1 -I../deps/uv/include -I../deps/http-parser -o ../out/duv.c.o -c duv.c $(lib_uv) $(CFLAGS)

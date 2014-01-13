@@ -157,3 +157,26 @@ UV_EXTERN void* duv__check_get_context(uv_check_t* handle) {
 UV_EXTERN int duv__check_stop(uv_check_t* check) {
     return uv_check_stop(check);
 }
+
+typedef void (*duv_connect_callback)(uv_tcp_t* handle, void* context, int status);
+
+typedef struct {
+    uv_connect_t req;
+    void * context;
+    duv_connect_callback callback;
+} duv_connect_t;
+
+
+void duv__connect_cb_bridge(uv_connect_t* plain_req, int status) {
+    duv_connect_t * req = (duv_connect_t*)plain_req;
+    req->callback((uv_tcp_t*)req->req.handle, req->context, status);
+    free(req);
+}
+
+UV_EXTERN int duv__tcp_connect4(uv_tcp_t* handle, void * context, char * ipv4, int port, duv_connect_callback cb) {
+  struct sockaddr_in addr = uv_ip4_addr(ipv4, port);
+  duv_connect_t * req = (duv_connect_t*)calloc(1, sizeof(duv_connect_t));
+  req->context = context;
+  req->callback = cb;
+  return uv_tcp_connect((uv_connect_t*)req, handle, addr, &duv__connect_cb_bridge);
+}

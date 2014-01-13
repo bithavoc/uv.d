@@ -240,3 +240,32 @@ status duv_check_stop(uv_check_t * handle) {
     return st;
 }
 
+private {
+    class duv_tcp_connect_context {
+        public:
+            duv_tcp_connect_callback callback;
+            Object context;
+    }
+    alias extern(C) void function(uv_tcp_t* handle, void* context, int status) duv__tcp_connect_callback;
+    extern (C) status duv__tcp_connect4(uv_tcp_t* handle, void* context, immutable(char) * ipv4, int port, duv__tcp_connect_callback cb);
+
+    extern (C) void duv_tcp_connect_bridge_callback(uv_tcp_t* handle, void * context, int status) {
+        duv_tcp_connect_context ctx = cast(duv_tcp_connect_context)context;
+        if(ctx.callback !is null) {
+            ctx.callback(handle, ctx.context, status);
+        }
+        ctx.DUV_UNFREEZE();
+        delete ctx;
+    }
+}
+
+alias void function(uv_tcp_t* handle, Object context, int status) duv_tcp_connect_callback;
+
+status duv_tcp_connect4(uv_tcp_t* handle, Object context, string ipv4, int port, duv_tcp_connect_callback cb) {
+    duv_tcp_connect_context ctx = new duv_tcp_connect_context;
+    ctx.context = context;
+    ctx.callback = cb;
+    ctx.DUV_FREEZE();
+    return duv__tcp_connect4(handle, cast(void*)ctx, ipv4.toStringz, port, &duv_tcp_connect_bridge_callback);
+}
+
