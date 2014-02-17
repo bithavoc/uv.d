@@ -37,7 +37,7 @@ duv.lib: lib/duv/*.d duv.c
 		(cd out/uv ; ar -x ../uv.a)
 		ar -r out/duv.a out/duv.c.o out/duv.lib.o out/uv/*.o
 
-uv: deps/uv/build deps/uv/**/*
+uv: deps/uv/build
 		CFLAGS="$(CFLAGS)" $(MAKE) BUILDTYPE=$(UVBUILDTYPE) -C deps/uv/out
 		mkdir -p out
 		cd deps; cp uv/out/$(UVBUILDTYPE)/libuv.a $(lib_uv)
