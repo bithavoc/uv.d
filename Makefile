@@ -4,8 +4,10 @@ MH_NAME=$(shell uname -m)
 CFLAGS=
 DFLAGS=
 UVBUILDTYPE=
+OS_TYPE=linux
 ifeq (${OS_NAME},Darwin)
 	DFLAGS+=-L-framework -LCoreServices 
+	OS_TYPE=osx
 endif
 ifeq (${DEBUG}, 1)
 	DFLAGS+=-debug -gc -gs -g
@@ -21,6 +23,12 @@ DC=dmd
 
 
 build: duv.lib
+
+dub: duv.lib
+	mkdir -p dub/bin
+	mkdir -p dub/di
+	cp -r out/di/ dub/di/
+	cp out/duv.a dub/bin/uv.d-$(OS_TYPE)-$(MH_NAME).a
 
 sample: duv.lib uv
 		cd samples; $(DC) -of../out/tcp_listener.app -I../out/di tcp_listener.d ../out/duv.a $(DFLAGS)

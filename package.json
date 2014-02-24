@@ -1,0 +1,11 @@
+{
+    "name": "uv",
+    "description": "D bindings for libuv",
+    "license": "MIT",
+    "importPaths": ["dub/di"],
+    "targetType": "library",
+    "lflags-osx": ["-framework", "CoreServices"],
+    "sourceFiles-osx-x86_64": ["dub/bin/uv.d-osx-x86_64.a"],
+    "sourceFiles-linux-x86_64": ["dub/bin/uv.d-linux-x86_64.a"]
+}
+    
