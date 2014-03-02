@@ -5,6 +5,7 @@ import std.string;
 import std.stdio;
 import duv.types;
 import core.memory : GC;
+public import std.socket : AddressInfo, AddressFamily, parseAddress;
 
 void DUV_FREEZE(Object obj) {
 	DUV_FREEZE_PTR(cast(void*)obj);
@@ -268,4 +269,117 @@ status duv_tcp_connect4(uv_tcp_t* handle, Object context, string ipv4, int port,
     ctx.DUV_FREEZE();
     return duv__tcp_connect4(handle, cast(void*)ctx, ipv4.toStringz, port, &duv_tcp_connect_bridge_callback);
 }
+
+private {
+    import std.stdint : int32_t, int16_t;
+    struct sockaddr;
+
+    struct addrinfo {
+        int32_t ai_flags;           /* input flags */
+        int32_t ai_family;          /* protocol family for socket */
+        int32_t ai_socktype;        /* socket type */
+        int32_t ai_protocol;        /* protocol for socket */
+        size_t ai_addrlen;   /* length of socket-address */
+        sockaddr *ai_addr; /* socket-address for socket */
+        char *ai_canonname;     /* canonical name for service location */
+        addrinfo *ai_next; /* pointer to next in list */
+    };
+    class duv__uv_getaddrinfo_context {
+        public:
+            Object context; 
+            duv_getaddrinfo_callback callback;
+            string node;
+            string service;
+    }
+
+    extern (C) {
+
+        version(Windows) {
+           enum : int {
+               AF_INET = 2,
+               AF_INET6 = 23,
+           }
+        }
+        version(linux) {
+           enum : int {
+               AF_INET = 2,
+               AF_INET6 = 10,
+           }
+        }
+        version(OSX) {
+           enum : int {
+               AF_INET = 2,
+               AF_INET6 = 30,
+           }
+        }
+
+        alias extern (C) void function(void * context, int status, addrinfo* res) duv__uv_getaddrinfo_callback;
+
+        extern (C) int duv__uv_getaddrinfo(uv_loop_t * loop, void* context, const char * node, const char * service, duv__uv_getaddrinfo_callback cb);
+
+        extern (C) void duv__uv_getaddrinfo_cb(void * context, int status, addrinfo* res) {
+            duv__uv_getaddrinfo_context ctx = cast(duv__uv_getaddrinfo_context)context;
+            if(ctx.callback !is null) {
+
+
+                AddressInfo[] infos;
+
+                addrinfo * current = res;
+
+                __gshared static const int MAX_IP_SIZE = 512;
+
+                while(current !is null) {
+                    // transform addrinfo into AddressInfo
+                    char ip[MAX_IP_SIZE];
+                    AddressInfo addr;
+                    switch(current.ai_family) {
+                        case AF_INET: {
+                                          addr.family = AddressFamily.INET;
+                                          break;
+                                      }
+                        case AF_INET6: {
+                                          addr.family = AddressFamily.INET6;
+                                          break;
+                                      }
+                        default:
+                                      continue; // ignore weird Address Family
+                    }
+                    int ip_status = duv__getaddr_ip(current, cast(char*)ip, MAX_IP_SIZE);
+                    if(ip_status) continue;
+                    addr.address = parseAddress(ip);
+                    infos ~= addr;
+                    current = current.ai_next; 
+                }
+
+                ctx.callback(ctx.context, status, infos);
+            }
+            ctx.DUV_UNFREEZE();
+            delete ctx;
+        }
+
+        int duv__getaddr_ip(addrinfo* addr, char * ip, size_t ip_len);
+    }
+}
+
+alias void function(Object context, int status, AddressInfo[] addresses) duv_getaddrinfo_callback;
+
+status duv_getaddrinfo(uv_loop_t* loop, Object context, string node, string service, duv_getaddrinfo_callback cb) {
+    auto ctx = new duv__uv_getaddrinfo_context;
+    ctx.context = context;
+    ctx.callback = cb;
+    ctx.DUV_FREEZE();
+    ctx.node = node;
+    ctx.service = service;
+    immutable(char) * nodev = null;
+    if(node !is null) {
+        nodev = node.toStringz;
+    }
+    immutable(char) * servicev = null;
+    if(service !is null) {
+        servicev = service.toStringz;
+    }
+    return duv__uv_getaddrinfo(loop, cast(void*)ctx,  nodev, servicev, &duv__uv_getaddrinfo_cb);
+}
+
+
 

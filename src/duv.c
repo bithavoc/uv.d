@@ -180,3 +180,40 @@ UV_EXTERN int duv__tcp_connect4(uv_tcp_t* handle, void * context, char * ipv4, i
   req->callback = cb;
   return uv_tcp_connect((uv_connect_t*)req, handle, addr, &duv__connect_cb_bridge);
 }
+
+typedef void (*duv__uv_getaddrinfo_callback)(void * context, int status, struct addrinfo* res);
+
+typedef struct {
+    uv_getaddrinfo_t req;
+    void * context;
+    duv__uv_getaddrinfo_callback callback;
+} duv_getaddrinfo_t;
+
+void duv__uv_getaddrinfo_bridge(uv_getaddrinfo_t* r, int status, struct addrinfo* res) {
+    duv_getaddrinfo_t* req = (duv_getaddrinfo_t*)r;
+    req->callback(req->context, status, res);
+    if(res) {
+        uv_freeaddrinfo(res);
+    }
+    free(req);
+}
+
+UV_EXTERN int duv__uv_getaddrinfo(uv_loop_t * loop, void* context, const char * node, const char * service, duv__uv_getaddrinfo_callback cb) {
+   duv_getaddrinfo_t * req = (duv_getaddrinfo_t*)calloc(1, sizeof(duv_getaddrinfo_t));
+   req->context = context;
+   req->callback = cb;
+   return uv_getaddrinfo(loop, (uv_getaddrinfo_t*)req, &duv__uv_getaddrinfo_bridge, node, service, NULL);
+}
+
+UV_EXTERN int duv__getaddr_ip(struct addrinfo* addr, char * ip, size_t ip_len) {
+    if(addr->ai_family == AF_INET) {
+        struct sockaddr_in* ipv = (struct sockaddr_in*)addr->ai_addr;
+        return uv_ip4_name(ipv, ip, ip_len);
+    }
+    else if(addr->ai_family == AF_INET6) {
+        struct sockaddr_in6* ipv = (struct sockaddr_in6*)addr->ai_addr;
+        return uv_ip6_name(ipv, ip, ip_len);
+    } else {
+        assert(0 && "Unknown address type");
+    }
+}

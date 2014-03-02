@@ -31,8 +31,9 @@ dub: duv.lib
 	cp out/duv.a dub/bin/uv.d-$(OS_TYPE)-$(MH_NAME).a
 
 sample: duv.lib uv
-		cd samples; $(DC) -of../out/tcp_listener.app -I../out/di tcp_listener.d ../out/duv.a $(DFLAGS)
-		cd samples; $(DC) -of../out/tcp_client.app -I../out/di tcp_client.d ../out/duv.a $(DFLAGS)
+		cd samples; $(DC) -of../out/tcp_listener.app -I../out/di tcp_listener.d util.d ../out/duv.a $(DFLAGS)
+		cd samples; $(DC) -of../out/dns_resolve.app -I../out/di dns_resolve.d util.d ../out/duv.a $(DFLAGS)
+		cd samples; $(DC) -of../out/tcp_client.app -I../out/di tcp_client.d util.d ../out/duv.a $(DFLAGS)
 
 duv.c: src/duv.c uv
 		cd src; $(CC) -DEV_MULTIPLICITY=1 -I../deps/uv/include -I../deps/http-parser -o ../out/duv.c.o -c duv.c $(lib_uv) $(CFLAGS)
