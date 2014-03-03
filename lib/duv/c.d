@@ -5,7 +5,7 @@ import std.string;
 import std.stdio;
 import duv.types;
 import core.memory : GC;
-public import std.socket : AddressInfo, AddressFamily, parseAddress;
+public import std.socket : AddressInfo, Address, AddressFamily, parseAddress, InternetAddress, Internet6Address;
 
 void DUV_FREEZE(Object obj) {
 	DUV_FREEZE_PTR(cast(void*)obj);
