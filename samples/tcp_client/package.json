@@ -1,0 +1,13 @@
+{
+	"name": "tcp_client",
+	"description": "A TCP Client",
+	"copyright": "Copyright © 2014, heapsource",
+	"authors": ["heapsource"],
+    "sourceFiles": ["../util.d"],
+	"dependencies": {
+        "uv": {
+            "path": "../../",
+            "version": "~master"
+        }
+	}
+}

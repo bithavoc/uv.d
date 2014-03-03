@@ -1,0 +1,13 @@
+{
+	"name": "dns",
+	"description": "A minimal DNS resolver",
+	"copyright": "Copyright © 2014, heapsource",
+	"authors": ["heapsource"],
+    "sourceFiles": ["../util.d"],
+	"dependencies": {
+        "uv": {
+            "path": "../../",
+            "version": "~master"
+        }
+	}
+}

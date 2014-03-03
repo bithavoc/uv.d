@@ -1,2 +1,9 @@
 /out
 /deps
+/samples/dns/dns
+/samples/dns/dns/.dub
+/samples/tcp_client/tcp_client
+/samples/tcp_client/tcp_client/.dub
+/samples/tcp_listener/tcp_listener
+/samples/tcp_listener/tcp_listener/.dub
+/.dub
