@@ -7,3 +7,4 @@
 /samples/tcp_listener/tcp_listener
 /samples/tcp_listener/tcp_listener/.dub
 .dub
+/uv.bridged-osx-x86_64.a

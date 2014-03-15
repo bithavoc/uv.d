@@ -87,6 +87,16 @@ struct _uv_err_t {
 };
 
 //
-// Check
+// network primitives
 //
 
+enum duv_addr_family : ubyte {
+    None,
+    INETv4,
+    INETv6
+}
+
+struct duv_addr {
+    duv_addr_family family;
+    string ip;
+};

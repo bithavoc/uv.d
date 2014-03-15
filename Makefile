@@ -26,7 +26,6 @@ build: duv.lib
 
 dub: build
 	mkdir -p dub/bin
-	mkdir -p dub/di
 	cp out/uv.bridged.a dub/bin/uv.bridged-$(OS_TYPE)-$(MH_NAME).a
 
 duv.lib: lib/duv/*.d out/uv.bridged.a
@@ -36,7 +35,7 @@ duv.lib: lib/duv/*.d out/uv.bridged.a
 		ar -r out/duv.a out/duv.c.o out/duv.lib.o out/uv/*.o
 
 duv.c: src/duv.c uv
-		cd src; $(CC) -DEV_MULTIPLICITY=1 -I../deps/uv/include -I../deps/http-parser -o ../out/duv.c.o -c duv.c $(lib_uv) $(CFLAGS)
+		cd src; $(CC) -DEV_MULTIPLICITY=1 -I../deps/uv/include -o ../out/duv.c.o -c duv.c $(lib_uv) $(CFLAGS)
 
 out/uv.bridged.a: uv duv.c
 		ar -r out/uv.bridged.a out/duv.c.o out/uv/*.o

@@ -8,7 +8,17 @@ void main() {
     st.check;
     writefln("Found %d addresses for %s", addresses.length, domainName);
     foreach(add; addresses) {
-        writefln("Address %s", add.address.toAddrString()); 
+        switch(add.family) {
+            case duv_addr_family.INETv4:
+            writefln("Address IPv4 %s", add.ip); 
+            break;
+            case duv_addr_family.INETv6:
+            writefln("Address IPv6 %s", add.ip); 
+            break;
+            default:
+            writefln("Unknown Address!!!"); 
+            break;
+        }
     }
   });
 

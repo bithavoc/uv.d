@@ -5,7 +5,7 @@ import std.string;
 import std.stdio;
 import duv.types;
 import core.memory : GC;
-public import std.socket : AddressInfo, Address, AddressFamily, parseAddress, InternetAddress, Internet6Address;
+import core.stdc.string : strlen;
 
 void DUV_FREEZE(Object obj) {
 	DUV_FREEZE_PTR(cast(void*)obj);
@@ -322,23 +322,23 @@ private {
             if(ctx.callback !is null) {
 
 
-                AddressInfo[] infos;
+                duv_addr[] infos;
 
                 addrinfo * current = res;
 
                 __gshared static const int MAX_IP_SIZE = 512;
 
                 while(current !is null) {
-                    // transform addrinfo into AddressInfo
+                    // transform addrinfo into duv_addr
                     char ip[MAX_IP_SIZE];
-                    AddressInfo addr;
+                    duv_addr addr;
                     switch(current.ai_family) {
                         case AF_INET: {
-                                          addr.family = AddressFamily.INET;
+                                          addr.family = duv_addr_family.INETv4;
                                           break;
                                       }
                         case AF_INET6: {
-                                          addr.family = AddressFamily.INET6;
+                                          addr.family = duv_addr_family.INETv6;
                                           break;
                                       }
                         default:
@@ -346,7 +346,7 @@ private {
                     }
                     int ip_status = duv__getaddr_ip(current, cast(char*)ip, MAX_IP_SIZE);
                     if(ip_status) continue;
-                    addr.address = parseAddress(ip);
+                    addr.ip = cast(string)ip[0 .. strlen(ip.ptr)].dup;
                     infos ~= addr;
                     current = current.ai_next; 
                 }
@@ -361,15 +361,15 @@ private {
     }
 }
 
-alias void function(Object context, int status, AddressInfo[] addresses) duv_getaddrinfo_callback;
+alias void function(Object context, int status, duv_addr[] addresses) duv_getaddrinfo_callback;
 
 status duv_getaddrinfo(uv_loop_t* loop, Object context, string node, string service, duv_getaddrinfo_callback cb) {
     auto ctx = new duv__uv_getaddrinfo_context;
     ctx.context = context;
     ctx.callback = cb;
-    ctx.DUV_FREEZE();
     ctx.node = node;
     ctx.service = service;
+    ctx.DUV_FREEZE();
     immutable(char) * nodev = null;
     if(node !is null) {
         nodev = node.toStringz;
