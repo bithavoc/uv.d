@@ -381,5 +381,31 @@ status duv_getaddrinfo(uv_loop_t* loop, Object context, string node, string serv
     return duv__uv_getaddrinfo(loop, cast(void*)ctx,  nodev, servicev, &duv__uv_getaddrinfo_cb);
 }
 
+private {
+    class duv_fs_open_context {
+        Object context;
+        duv_fs_open_callback callback;
+    }
+    extern (C) {
+        alias void function(void * context, int status, void * fd) duv__fs_open_callback;
+        status duv__fs_open(uv_loop_t* loop, void * context, const char* path,
+                    int flags, int mode, duv__fs_open_callback cb);
 
+        void duv__fs_open_bridge_callback(void * context, int status, void * fd) {
+            auto ctx = cast(duv_fs_open_context)context;
+            ctx.callback(ctx.context, status, fd);
+            delete ctx;
+        }
+    }
+}
+alias void function(Object context, int status, void * fd) duv_fs_open_callback;
+
+
+status duv_fs_open(uv_loop_t * loop, Object context, string path, duv_file_flag flags, int mode, duv_fs_open_callback cb) {
+    auto ctx = new duv_fs_open_context;
+    ctx.context = context;
+    ctx.callback = cb;
+    ctx.DUV_FREEZE();
+    return duv__fs_open(loop, cast(void*)ctx, path.toStringz, flags, mode, &duv__fs_open_bridge_callback);
+}
 

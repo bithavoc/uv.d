@@ -1,0 +1,13 @@
+{
+	"name": "fs_example",
+	"description": "fs example",
+	"copyright": "Copyright © 2014, heapsource",
+	"authors": ["heapsource"],
+    "sourceFiles": ["../util.d"],
+	"dependencies": {
+        "uv": {
+            "path": "../../",
+            "version": "~master"
+        }
+	}
+}

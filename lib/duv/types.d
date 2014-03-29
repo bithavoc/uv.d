@@ -100,3 +100,42 @@ struct duv_addr {
     duv_addr_family family;
     string ip;
 };
+
+version( linux )
+{
+    enum duv_file_flag {
+        O_CREAT = 0x40,
+        O_RDONLY = 0x0,
+        O_SYNC = 0x101000,
+        O_RDWR = 0x2,
+        O_TRUNC = 0x200,
+        O_WRONLY = 0x1,
+        O_EXCL = 0x80,
+        O_APPEND = 0x400
+    }
+} else version ( OSX ) {
+    enum duv_file_flag {
+        O_CREAT = 0x0200,
+        O_RDONLY = 0x0000,
+        O_SYNC = 0x0080,
+        O_RDWR = 0x0002,
+        O_TRUNC = 0x0400,
+        O_WRONLY = 0x0001,
+        O_EXCL = 0x0800,
+        O_APPEND = 0x0008
+    }
+} else version ( FreeBSD ) {
+    enum duv_file_flag {
+        O_CREAT = 0x0200,
+        O_RDONLY = 0x0000,
+        O_SYNC = 0x0080,
+        O_RDWR = 0x0002,
+        O_TRUNC = 0x0400,
+        O_WRONLY = 0x0001,
+        O_EXCL = 0x0800,
+        O_APPEND = 0x0008
+    }
+}
+else {
+    static assert(false, "Unsupported platform");
+}

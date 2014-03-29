@@ -217,3 +217,31 @@ UV_EXTERN int duv__getaddr_ip(struct addrinfo* addr, char * ip, size_t ip_len) {
         assert(0 && "Unknown address type");
     }
 }
+
+typedef void (*duv__fs_open_callback)(void * context, int status, void * fd);
+
+typedef struct {
+    uv_fs_t req;
+    void * context;
+    duv__fs_open_callback callback;
+} duv__fs_req_t;
+
+void duv__fs_open_bridge(uv_fs_t* uv_req) {
+    duv__fs_req_t * req = (duv__fs_req_t*)uv_req;
+    ssize_t status = req->req.result;
+    void * fd = NULL;
+    if(status > 0) {
+        fd = (void*)status;
+    }
+    req->callback(req->context, status, fd);
+    free(req);
+}
+
+UV_EXTERN int duv__fs_open(uv_loop_t* loop, void * context,  const char* path,
+            int flags, int mode, duv__fs_open_callback cb) {
+   duv__fs_req_t * req = calloc(1, sizeof(duv__fs_req_t));
+   req->context = context;
+   req->callback = cb;
+   return uv_fs_open(loop, &req->req, path, flags, mode, &duv__fs_open_bridge);
+}
+
