@@ -19,7 +19,7 @@ else
 endif
 EXAMPLES_FLAGS=-Isrc/ $(DFLAGS)
 lib_uv=../out/uv.a
-DC=dmd
+DC ?=dmd
 
 
 build: duv.lib
