@@ -57,4 +57,5 @@ deps/uv/build:
 
 clean:
 		rm -rf out
-		rm -rf deps/*
+		rm -rf deps/build
+		rm -rf deps/out
