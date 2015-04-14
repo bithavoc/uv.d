@@ -52,7 +52,7 @@ uv: deps/uv/build
 deps/uv/build:
 	git submodule update --init --recursive
 	cd deps/uv; mkdir -p build
-	git clone https://git.chromium.org/external/gyp.git deps/uv/build/gyp
+	git clone https://chromium.googlesource.com/external/gyp deps/uv/build/gyp
 	cd deps/uv ; ./gyp_uv.py -f make
 
 clean:
