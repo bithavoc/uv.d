@@ -1,12 +1,18 @@
 {
     "name": "uv",
     "description": "D bindings for libuv",
+    "copyright": "Copyright © 2013-2014, Heapsource.com, 2014-2016 IoTone, Inc.",
     "license": "MIT",
     "sourcePaths": ["lib"],
     "importPaths": ["lib"],
     "targetType": "sourceLibrary",
     "lflags-osx": ["-framework", "CoreServices"],
+    "sourceFiles": ["out/uv.bridged.a"],
     "sourceFiles-osx-x86_64": ["dub/bin/uv.bridged-osx-x86_64.a"],
-    "sourceFiles-linux-x86_64": ["dub/bin/uv.bridged-linux-x86_64.a"]
+    "sourceFiles-linux-x86_64": ["out/duv.c.o"],
+    "sourceFiles-linux-armv5tel": ["dub/bin/http-parser-linux-armv5tel.d.c.o", "dub/bin/http-parser-linux-armv5tel.o"],
+    "sourceFiles-linux-armv7l": ["dub/bin/http-parser-linux-armv7l.d.c.o", "dub/bin/http-parser-linux-armv7l.o"]
+
+
 }
 

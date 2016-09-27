@@ -19,7 +19,7 @@ else
 endif
 EXAMPLES_FLAGS=-Isrc/ $(DFLAGS)
 lib_uv=../out/uv.a
-DC=dmd
+DC ?=dmd
 
 
 build: duv.lib
@@ -52,9 +52,10 @@ uv: deps/uv/build
 deps/uv/build:
 	git submodule update --init --recursive
 	cd deps/uv; mkdir -p build
-	git clone https://git.chromium.org/external/gyp.git deps/uv/build/gyp
+	git clone https://chromium.googlesource.com/external/gyp deps/uv/build/gyp
 	cd deps/uv ; ./gyp_uv.py -f make
 
 clean:
 		rm -rf out
-		rm -rf deps/*
+		rm -rf deps/build
+		rm -rf deps/out
